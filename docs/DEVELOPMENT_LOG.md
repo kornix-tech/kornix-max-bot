@@ -1,5 +1,41 @@
 # Development Log
 
+## 2026-07-05 - Step 4 Production Deploy Scaffold
+
+### Реализовано
+
+- Добавлен multi-stage `Dockerfile` на Node 22 Alpine с production runtime dependencies, `dist/` startup, non-root user и `/health` healthcheck.
+- Добавлен `.dockerignore`, исключающий `.env`, build artifacts, git metadata и `kornix base/`.
+- Добавлен `.env.production.example` без реальных секретов.
+- Добавлен `deploy/docker-compose.bot.yml` для отдельного service `kornix-max-bot`.
+- Добавлен `deploy/Caddyfile.bot.snippet` для route `/max/webhook -> kornix-max-bot:3000` без path rewrite.
+- Добавлен `deploy/smoke-test.sh` для проверки `/health` и ignored webhook update.
+- Добавлен `deploy/README_DEPLOY_VDS.md` с VDS runbook.
+- Добавлены package scripts `docker:build`, `docker:run`, `smoke`.
+
+### Принятые Решения
+
+- Бот запускается отдельным Docker service, а не в backend/frontend compose-файлах.
+- Compose подключается к существующей Caddy-accessible network через external network `meteo_stack_meteo_net` по умолчанию.
+- Для отдельного compose project у bot container задано стабильное имя и network alias `kornix-max-bot`, чтобы Caddy мог резолвить `kornix-max-bot:3000`.
+- Caddy snippet использует `handle /max/webhook`, потому что `handle_path` срезал бы путь и сломал route приложения.
+- Production secrets живут только в `.env.production`, который не должен попадать в git или Docker image.
+
+### Проверки
+
+- `pnpm run build`
+- `pnpm run test`
+- `pnpm run test:coverage`
+- `git diff --check`
+- `docker build -t kornix-max-bot:local .`, если Docker доступен локально.
+
+### Следующий Шаг
+
+- Code review deploy scaffold.
+- На VDS подтвердить фактическое имя Docker network и вставить Caddy snippet в основной Caddyfile.
+- После smoke включать реальный MAX webhook `https://poliv360.ru/max/webhook`.
+- User binding, auth workflow и write-команды полива остаются вне этого шага.
+
 ## 2026-07-05 - Step 3 MAX Messenger Read-Only Integration
 
 ### Реализовано

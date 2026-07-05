@@ -2,6 +2,9 @@
 
 ## 2026-07-05
 
+- Добавлен production deploy scaffold для VDS: `Dockerfile`, `.dockerignore`, `.env.production.example`, `deploy/docker-compose.bot.yml`, Caddy snippet, smoke script и VDS runbook, чтобы read-only MAX bot можно было собрать и подключить к существующему Caddy/Docker контуру.
+- Уточнён Docker network setup для отдельного compose project: bot container получает стабильное имя и alias `kornix-max-bot`, а VDS runbook содержит команды диагностики `docker network ls` и `docker inspect`.
+- Добавлены package scripts для Docker build/run/smoke и обновлены архитектурные документы с ADR-006..008, чтобы зафиксировать отдельный service deployment, reverse proxy route и хранение production secrets вне git.
 - Реализована read-only интеграция с MAX Messenger: добавлены `MaxClient`, MAX DTO, webhook secret verifier, обработка `message_created` text updates и отправка ответов через MAX API, чтобы бот мог отвечать на команды без write workflow.
 - Добавлены parser/dispatcher/handlers/formatter для команд `/start`, `/help`, `/status`, `/context`, `/fields`, `/methods`, `/readiness`, чтобы отделить транспорт MAX от логики KORNIX read-only ответов.
 - Добавлены unit tests для MAX client, webhook verifier, webhook flow, parser, dispatcher и formatter, чтобы покрыть успешные сценарии, HTTP ошибки, timeout, invalid JSON и command routing.

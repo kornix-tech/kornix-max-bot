@@ -92,7 +92,7 @@ Forbidden for bot:
 
 ## Current Implementation
 
-The current repository now contains the Step 3 read-only integration:
+The current repository now contains the Step 4 read-only production deploy scaffold:
 
 - `GET /health` returns `{ "status": "ok" }`;
 - `POST /max/webhook` verifies `X-Max-Bot-Api-Secret`, parses MAX updates and replies to text commands;
@@ -103,6 +103,10 @@ The current repository now contains the Step 3 read-only integration:
 - `src/bot/commandDispatcher.ts` routes parsed commands to handlers;
 - `src/bot/handlers/*` call only `KornixClient`, not raw HTTP;
 - `src/bot/messageFormatter.ts` owns user-facing bot text.
+- `Dockerfile` builds a production image from compiled `dist/`;
+- `deploy/docker-compose.bot.yml` runs the bot as a separate service on the Caddy-accessible Docker network;
+- `deploy/Caddyfile.bot.snippet` routes public `/max/webhook` to `kornix-max-bot:3000` without rewriting the path;
+- `.env.production.example` documents production runtime variables without secrets.
 
 Implemented commands:
 
@@ -121,13 +125,13 @@ Still intentionally not implemented:
 - write approvals;
 - draft irrigation commands;
 - persistence/database;
-- Docker/deploy/CI changes.
+- GitHub Actions/CI/CD changes.
 
 ## Future Production Concerns
 
 - Define official bot auth contract with backend.
 - Decide whether bot is read-only or can submit approvals.
-- Add Dockerfile and compose integration next to backend/frontend.
+- Validate VDS Caddy network name and route insertion during deployment.
 - Add structured logs and request IDs.
 - Add retry/backoff for backend reads.
 - Add idempotency handling for MAX events.

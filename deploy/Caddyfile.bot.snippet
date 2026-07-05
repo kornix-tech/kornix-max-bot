@@ -1,0 +1,10 @@
+# Вставить в основной Caddyfile рядом с /api/* и frontend route.
+# Используется handle, а не handle_path: backend приложения должен получить POST /max/webhook.
+handle /max/webhook {
+	reverse_proxy kornix-max-bot:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

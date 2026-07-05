@@ -1,6 +1,6 @@
 # kornix-max-bot
 
-`kornix-max-bot` is a planned standalone Docker service for the KORNIX/POLIV360 contour.
+`kornix-max-bot` is a standalone Docker-ready service for the KORNIX/POLIV360 contour.
 
 ```text
 MAX Messenger
@@ -13,12 +13,17 @@ The bot must not connect to the database and must not parse the frontend. Its on
 
 ## Current Status
 
-Step 1 shell only:
+Current implementation:
 
 - reference repositories audited and documented in `docs/`;
-- minimal TypeScript project scaffold created;
+- TypeScript project scaffold created;
+- KORNIX API client implemented;
+- MAX API client implemented;
+- MAX webhook verifier and handler implemented;
+- read-only commands: `/start`, `/help`, `/status`, `/context`, `/fields`, `/methods`, `/readiness`;
 - HTTP server exposes `GET /health` and `POST /max/webhook`;
-- bot commands, MAX API calls, backend API calls, auth flows and database access are intentionally not implemented yet.
+- production Docker/deploy scaffold is available in `deploy/`;
+- auth flows, user binding, database access and write irrigation commands are intentionally not implemented yet.
 
 ## Structure
 
@@ -31,7 +36,8 @@ Step 1 shell only:
 - `src/types/` - shared TypeScript contracts.
 - `src/utils/` - logging and small utilities.
 - `docs/` - reference audit, API reference, integration and architecture notes.
-- `tests/` - future tests.
+- `deploy/` - Docker Compose, Caddy snippet and VDS deployment smoke helpers.
+- `tests/` - unit tests.
 
 ## Run
 
@@ -49,6 +55,22 @@ pnpm run dev
 
 Default port is `3000`. Copy `.env.example` to `.env` when real credentials are introduced.
 
+## Docker
+
+```bash
+pnpm run docker:build
+pnpm run docker:run
+```
+
+For VDS deployment, use:
+
+```bash
+cd deploy
+docker compose -f docker-compose.bot.yml up -d --build
+```
+
+Detailed production notes are in `deploy/README_DEPLOY_VDS.md`.
+
 ## Roadmap
 
 1. Confirm the production backend branch/API version to use.
@@ -56,4 +78,5 @@ Default port is `3000`. Copy `.env.example` to `.env` when real credentials are 
 3. Add KORNIX API client implementation and contract tests.
 4. Add MAX webhook verification and outgoing message client.
 5. Add command handlers for read-only status, fields, map/profile summaries and irrigation workflows.
-6. Add Dockerfile and production compose integration.
+6. Add production subscription/idempotency hardening.
+7. Decide auth/user binding before any write workflow.

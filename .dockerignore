@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+dist-test
+.env
+.env.*
+!.env.example
+kornix base
+.git
+.gitignore
+.DS_Store
+*.log

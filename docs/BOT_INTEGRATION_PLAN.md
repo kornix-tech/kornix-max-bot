@@ -164,6 +164,25 @@ Next steps:
 - add user binding/auth only after backend contract is approved;
 - keep approvals blocked until write auth and audit attribution are designed.
 
+## Production Deploy Scaffold
+
+Step 4 prepares the bot as a separate Docker service:
+
+- image is built by the root `Dockerfile`;
+- runtime secrets live in `.env.production`, copied from `.env.production.example`;
+- compose file is `deploy/docker-compose.bot.yml`;
+- the service joins the existing Caddy-accessible Docker network, defaulting to `meteo_stack_meteo_net`;
+- Caddy routes only `/max/webhook` to `kornix-max-bot:3000`;
+- `deploy/smoke-test.sh` checks `/health` and an ignored webhook update without requiring a real MAX token.
+
+The public MAX webhook URL is:
+
+```text
+https://poliv360.ru/max/webhook
+```
+
+Deploy scaffold still does not add user binding, approvals, database access or CI/CD.
+
 ## Endpoint Mapping For Initial Commands
 
 - status: `current-context`, `readiness/current`, optional `calculation-runs/{id}`;
