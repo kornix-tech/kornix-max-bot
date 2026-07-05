@@ -1,6 +1,6 @@
 # API Reference For Bot Integration
 
-Дата аудита: 2026-07-04.
+Дата аудита: 2026-07-05.
 
 Источники:
 
@@ -9,6 +9,12 @@
 - frontend main facade: `kornix base/kornix_site/src/api/kornixApi.ts`;
 - frontend `origin/v1.1` route registry: `src/api/kornixApiRoutes.ts`;
 - backend `origin/v1.2` router: `template/app/src/meteo_pipeline/api/kornix_routes.py`.
+- MAX official API docs:
+  - `https://dev.max.ru/docs-api/methods/POST/messages`;
+  - `https://dev.max.ru/docs-api/methods/POST/answers`;
+  - `https://dev.max.ru/docs-api/methods/POST/subscriptions`;
+  - `https://dev.max.ru/docs-api/objects/Update`;
+  - `https://dev.max.ru/docs-api/objects/Message`.
 
 ## Общие Правила
 
@@ -500,3 +506,93 @@ Response DTO:
 - `GET /api/v2/kornix/equipment/field-source-gantt`.
 
 До реализации команд бота нужно выбрать production branch/API contract. Для шага 1 каркас фиксирует только main endpoints, обязательные для текущего irrigation workflow.
+
+## MAX Messenger API
+
+Шаг 3 использует только исходящие replies и webhook secret verification. Авторизация пользователя KORNIX, approvals и callback business actions не реализуются.
+
+Base URL по умолчанию: `https://platform-api2.max.ru`.
+
+Auth header для outgoing MAX API:
+
+```text
+Authorization: <MAX_BOT_TOKEN>
+```
+
+### POST `/messages?user_id=...`
+
+Назначение: отправить сообщение конкретному пользователю.
+
+Использование ботом: fallback, если incoming update не содержит `chat_id`.
+
+Query:
+
+- `user_id`: MAX user id;
+- `disable_link_preview`: optional boolean.
+
+Request body:
+
+```json
+{
+  "text": "Ответ бота",
+  "notify": true
+}
+```
+
+### POST `/messages?chat_id=...`
+
+Назначение: отправить сообщение в чат.
+
+Использование ботом: основной reply path для `message_created`.
+
+Query:
+
+- `chat_id`: MAX chat id;
+- `disable_link_preview`: optional boolean.
+
+Request body совпадает с user message body.
+
+### POST `/answers?callback_id=...`
+
+Назначение: ответить на callback от inline controls.
+
+Использование ботом: клиентский метод добавлен для полноты MAX client, но command workflow шага 3 не создаёт inline controls и не исполняет callback business actions.
+
+Query:
+
+- `callback_id`: MAX callback id.
+
+Request body:
+
+```json
+{
+  "notification": "Готово",
+  "message": null
+}
+```
+
+### Webhook Updates
+
+Webhook endpoint бота: `POST /max/webhook`.
+
+Secret verification:
+
+- incoming header: `X-Max-Bot-Api-Secret`;
+- если `MAX_WEBHOOK_SECRET` пустой, проверка отключена;
+- если secret задан, missing/mismatch возвращает `401`.
+
+Обрабатывается только read-only text update:
+
+```json
+{
+  "update_type": "message_created",
+  "timestamp": 1780000000,
+  "message": {
+    "sender": { "user_id": "user-1" },
+    "recipient": { "chat_id": "chat-1" },
+    "body": { "text": "/status" }
+  }
+}
+```
+
+Неизвестные update types логируются и завершаются HTTP `200`, чтобы MAX не ретраил события, которые бот сознательно игнорирует.

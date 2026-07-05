@@ -1,6 +1,6 @@
 # Architecture
 
-Дата: 2026-07-04.
+Дата: 2026-07-05.
 
 ## Text Scheme
 
@@ -92,11 +92,36 @@ Forbidden for bot:
 
 ## Current Implementation
 
-The current repository contains only the first shell:
+The current repository now contains the Step 3 read-only integration:
 
 - `GET /health` returns `{ "status": "ok" }`;
-- `POST /max/webhook` returns `{ "ok": true }`;
-- KORNIX and MAX modules are interface stubs.
+- `POST /max/webhook` verifies `X-Max-Bot-Api-Secret`, parses MAX updates and replies to text commands;
+- `src/max/maxClient.ts` sends outgoing messages through MAX API using `undici.fetch`;
+- `src/max/webhookVerifier.ts` validates webhook secret without touching command logic;
+- `src/kornix/kornixClient.ts` is the only KORNIX HTTP layer;
+- `src/bot/commandParser.ts` maps read-only commands through a registry;
+- `src/bot/commandDispatcher.ts` routes parsed commands to handlers;
+- `src/bot/handlers/*` call only `KornixClient`, not raw HTTP;
+- `src/bot/messageFormatter.ts` owns user-facing bot text.
+
+Implemented commands:
+
+- `/start`
+- `/help`
+- `/status`
+- `/context`
+- `/fields`
+- `/methods`
+- `/readiness`
+
+Still intentionally not implemented:
+
+- MAX subscription management;
+- user authorization/login;
+- write approvals;
+- draft irrigation commands;
+- persistence/database;
+- Docker/deploy/CI changes.
 
 ## Future Production Concerns
 

@@ -1,15 +1,19 @@
 export type BotCommandName =
   | 'unknown'
+  | 'start'
   | 'help'
   | 'status'
+  | 'context'
   | 'fields'
-  | 'map'
-  | 'profile'
-  | 'recommendations'
-  | 'irrigation';
+  | 'methods'
+  | 'readiness';
 
 export type ParsedCommand = {
-  name: BotCommandName;
+  type: BotCommandName;
   rawText: string;
   args: string[];
+};
+
+export type BotResponse = {
+  text: string;
 };

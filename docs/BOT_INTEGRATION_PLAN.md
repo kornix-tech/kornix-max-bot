@@ -1,6 +1,6 @@
 # Bot Integration Plan
 
-Дата: 2026-07-04.
+Дата: 2026-07-05.
 
 ## Цель
 
@@ -135,19 +135,34 @@ Required query:
 
 ## MAX Webhook Plan
 
-Current shell:
+Step 3 current implementation:
 
 - accepts `POST /max/webhook`;
 - reads body with a small limit;
-- returns `{ "ok": true }`.
+- verifies `X-Max-Bot-Api-Secret` when `MAX_WEBHOOK_SECRET` is configured;
+- accepts a single MAX update or `{ "updates": [...] }`;
+- handles only `message_created` text messages;
+- ignores unknown update types with HTTP `200`;
+- parses read-only commands and dispatches handlers;
+- replies through MAX `POST /messages`;
+- catches KORNIX API failures, logs them and sends a friendly text instead of returning HTTP `500`.
+
+Implemented commands:
+
+- `/start`: welcome and command list;
+- `/help`: command descriptions;
+- `/status`: readiness/current operational status;
+- `/context`: tenant-season context summary;
+- `/fields`: first 10 fields from catalog;
+- `/methods`: available calculation methods and default;
+- `/readiness`: readiness detail summary.
 
 Next steps:
 
-- add signature verification using `MAX_WEBHOOK_SECRET`;
-- normalize MAX event DTOs;
-- map incoming text to command parser;
-- call command handlers;
-- send replies through MAX API with `MAX_BOT_TOKEN`.
+- decide production MAX subscription ownership and rotation process;
+- add event idempotency if MAX retry behavior requires it;
+- add user binding/auth only after backend contract is approved;
+- keep approvals blocked until write auth and audit attribution are designed.
 
 ## Endpoint Mapping For Initial Commands
 

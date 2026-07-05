@@ -3,6 +3,7 @@ kornix base/
 .DS_Store
 node_modules/
 dist/
+dist-test/
 coverage/
 .env
 .env.*

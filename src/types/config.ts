@@ -9,5 +9,8 @@ export type AppConfig = {
   kornixServiceToken: string;
   maxBotToken: string;
   maxWebhookSecret: string;
+  maxApiBaseUrl: string;
+  maxRequestTimeoutMs: number;
+  defaultSeasonYear: number;
   logLevel: LogLevel;
 };

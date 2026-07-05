@@ -1,10 +1,22 @@
 import type { ParsedCommand } from '../types/bot.js';
 
+const COMMAND_ALIASES = new Map<string, ParsedCommand['type']>([
+  ['/start', 'start'],
+  ['/help', 'help'],
+  ['/status', 'status'],
+  ['/context', 'context'],
+  ['/fields', 'fields'],
+  ['/methods', 'methods'],
+  ['/readiness', 'readiness']
+]);
+
 export function parseCommand(rawText: string): ParsedCommand {
   const trimmed = rawText.trim();
+  const [command = '', ...args] = trimmed.split(/\s+/);
+  const type = COMMAND_ALIASES.get(command.toLowerCase()) ?? 'unknown';
   return {
-    name: 'unknown',
+    type,
     rawText,
-    args: trimmed ? trimmed.split(/\s+/) : []
+    args
   };
 }

@@ -1,12 +1,36 @@
 import { createServer } from 'node:http';
 import { loadConfig } from './config/config.js';
 import { createMaxWebhookHttpHandler, healthHandler } from './handlers/index.js';
+import { KornixClient } from './kornix/kornixClient.js';
+import { MaxClient } from './max/maxClient.js';
 import { createLogger } from './utils/logger.js';
 import { sendMethodNotAllowed, sendNotFound } from './utils/http.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
-const maxWebhookHandler = createMaxWebhookHttpHandler(logger);
+const kornixClient = new KornixClient(
+  {
+    baseUrl: config.kornixApiBaseUrl,
+    serviceToken: config.kornixServiceToken,
+    timeoutMs: 30_000
+  },
+  logger
+);
+const maxClient = new MaxClient(
+  {
+    baseUrl: config.maxApiBaseUrl,
+    botToken: config.maxBotToken,
+    timeoutMs: config.maxRequestTimeoutMs
+  },
+  logger
+);
+const maxWebhookHandler = createMaxWebhookHttpHandler({
+  logger,
+  webhookSecret: config.maxWebhookSecret,
+  defaultSeasonYear: config.defaultSeasonYear,
+  kornixClient,
+  maxClient
+});
 
 const server = createServer(async (request, response) => {
   try {
