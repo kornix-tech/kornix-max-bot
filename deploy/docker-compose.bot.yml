@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../.env.production
+    volumes:
+      - ../certs/russian_trusted_bundle.crt:/app/certs/russian_trusted_bundle.crt:ro
     expose:
       - "3000"
     # Local debug only:
