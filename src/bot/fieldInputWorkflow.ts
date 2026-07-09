@@ -374,7 +374,7 @@ function formatSubmitError(error: unknown, kind: InputKind): string {
   const label = kindLabel(kind).toLowerCase();
   if (error instanceof ApiError) {
     if (error.status === 403 || error.status === 401) {
-      return `Не удалось сохранить ${label}: backend не разрешил запись для бота (${error.code}).`;
+      return `Не удалось сохранить ${label}: доступ бота к записи в KORNIX пока не включён. Черновик сохранён, можно повторить подтверждение позже.`;
     }
     if (error.status === 404 && kind === 'rain') {
       return 'Не удалось сохранить осадки: endpoint ручных осадков ещё не включён в KORNIX backend.';
