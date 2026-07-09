@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { extractTextMessage, parseUpdates, processMaxWebhook } from '../src/max/maxWebhook.js';
+import { extractCallbackCommand, extractTextMessage, parseUpdates, processMaxWebhook } from '../src/max/maxWebhook.js';
 import { ConversationStateStore } from '../src/bot/conversationState.js';
 import type { KornixClient } from '../src/kornix/kornixClient.js';
 import type { MaxClient } from '../src/max/maxClient.js';
@@ -11,6 +11,7 @@ type SentMessage = {
   target: 'chat' | 'user';
   id: MaxId;
   text: string;
+  attachments?: unknown[] | null | undefined;
 };
 
 function logger(): Logger {
@@ -24,12 +25,15 @@ function logger(): Logger {
 
 function createMaxClient(sent: SentMessage[]): MaxClient {
   return {
-    sendMessageToChat: async (chatId: MaxId, text: string) => {
-      sent.push({ target: 'chat', id: chatId, text });
+    sendMessageToChat: async (chatId: MaxId, text: string, options?: { attachments?: unknown[] | null }) => {
+      sent.push({ target: 'chat', id: chatId, text, attachments: options?.attachments });
       return { success: true };
     },
-    sendMessageToUser: async (userId: MaxId, text: string) => {
-      sent.push({ target: 'user', id: userId, text });
+    sendMessageToUser: async (userId: MaxId, text: string, options?: { attachments?: unknown[] | null }) => {
+      sent.push({ target: 'user', id: userId, text, attachments: options?.attachments });
+      return { success: true };
+    },
+    answerCallback: async () => {
       return { success: true };
     }
   } as unknown as MaxClient;
@@ -86,6 +90,22 @@ function messageUpdate(text: string): MaxUpdate {
   };
 }
 
+function callbackUpdate(payload: string): MaxUpdate {
+  return {
+    update_type: 'message_callback',
+    timestamp: 1,
+    callback: {
+      callback_id: 'callback-1',
+      payload,
+      user: { user_id: 'user-1' },
+      message: {
+        recipient: { chat_id: 'chat-1' },
+        body: { text: 'Выберите поле' }
+      }
+    }
+  };
+}
+
 describe('maxWebhook', () => {
   it('parses single updates and update lists', () => {
     assert.equal(parseUpdates(JSON.stringify(messageUpdate('/help'))).length, 1);
@@ -99,6 +119,15 @@ describe('maxWebhook', () => {
     assert.equal(incoming?.userId, 'user-1');
     assert.equal(incoming?.chatId, 'chat-1');
     assert.equal(incoming?.text, '/status');
+  });
+
+  it('extracts callback payload commands from a message_callback update', () => {
+    const incoming = extractCallbackCommand(callbackUpdate('/field 1.1'));
+
+    assert.equal(incoming?.userId, 'user-1');
+    assert.equal(incoming?.chatId, 'chat-1');
+    assert.equal(incoming?.text, '/field 1.1');
+    assert.equal(incoming?.callbackId, 'callback-1');
   });
 
   it('dispatches text commands and sends a chat reply', async () => {
@@ -117,6 +146,53 @@ describe('maxWebhook', () => {
     assert.equal(sent.length, 1);
     assert.equal(sent[0]?.target, 'chat');
     assert.match(sent[0]?.text ?? '', /Доступные команды/);
+  });
+
+  it('dispatches callback commands and sends keyboard replies', async () => {
+    const sent: SentMessage[] = [];
+    const result = await processMaxWebhook({
+      rawBody: JSON.stringify(callbackUpdate('/fields')),
+      requestId: 'req-1',
+      seasonYear: 2026,
+      kornixClient: {
+        ...createKornixClient(),
+        getFieldSeasonCatalog: async () => ({
+          organizationCode: 'SP',
+          seasonYear: 2026,
+          generatedAt: '2026-07-05T10:00:00+03:00',
+          fields: [
+            {
+              fieldId: 'field-1',
+              fieldSeasonId: 'field-season-1',
+              fieldKey: 'SP:1.1',
+              fieldName: 'SP:1.1',
+              areaHa: 12.5,
+              cropName: 'Пшеница',
+              cropSowingDate: null,
+              koef_upper_limit: null,
+              koef_optimum: null,
+              koef_lower_limit: null,
+              geometry: null
+            }
+          ]
+        })
+      } as unknown as KornixClient,
+      maxClient: createMaxClient(sent),
+      conversationStore: new ConversationStateStore(),
+      logger: logger()
+    });
+
+    assert.deepEqual(result, { ok: true, handled: true });
+    assert.equal(sent.length, 1);
+    assert.match(sent[0]?.text ?? '', /Поле 1\.1/);
+    assert.deepEqual(sent[0]?.attachments, [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: '1.1', payload: '/field 1.1' }]]
+        }
+      }
+    ]);
   });
 
   it('ignores unsupported update types with 200-compatible result', async () => {

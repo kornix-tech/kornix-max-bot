@@ -95,6 +95,21 @@ export type MaxOutgoingMessage = {
   [key: string]: JsonValue | unknown;
 };
 
+export type MaxInlineKeyboardButton = {
+  type: 'message' | 'callback' | 'link' | 'request_contact' | 'request_geo_location' | 'open_app' | 'clipboard';
+  text: string;
+  payload?: string | JsonObject | null;
+  url?: string;
+  [key: string]: JsonValue | unknown;
+};
+
+export type MaxInlineKeyboardAttachment = {
+  type: 'inline_keyboard';
+  payload: {
+    buttons: MaxInlineKeyboardButton[][];
+  };
+};
+
 export type MaxSendMessageRequest = MaxOutgoingMessage;
 
 export type MaxSendMessageResponse = {
@@ -116,6 +131,7 @@ export type MaxAnswerCallbackResponse = {
 export type MaxSendMessageOptions = {
   disableLinkPreview?: boolean;
   notify?: boolean;
+  attachments?: unknown[] | null;
 };
 
 export type MaxWebhookPayload = MaxUpdate | { updates: MaxUpdate[] };

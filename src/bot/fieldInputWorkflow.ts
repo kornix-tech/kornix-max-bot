@@ -1,5 +1,6 @@
 import type { BotContext } from './botContext.js';
 import type { InputKind, PendingFieldInput } from './conversationState.js';
+import { commandButtonKeyboard } from './keyboards.js';
 import type {
   FieldSeasonCatalogFieldDto,
   KornixApprovalIrrigationCellDto,
@@ -27,7 +28,15 @@ export async function listFieldsForSelection(context: BotContext): Promise<BotRe
       ? [`Показаны первые 20 из ${catalog.fields.length}. Напишите /field 1.11.`]
       : [`Всего полей: ${catalog.fields.length}. Напишите номер поля, например 1.11, или /field 1.11.`];
 
-  return { text: ['Выберите поле KORNIX', ...lines, ...tail].join('\n') };
+  const fieldButtons = catalog.fields.slice(0, 40).map((field) => {
+    const number = fieldNumber(field);
+    return { text: number, command: `/field ${number}` };
+  });
+
+  return {
+    text: ['Выберите поле KORNIX', ...lines, ...tail].join('\n'),
+    attachments: commandButtonKeyboard(fieldButtons, 4)
+  };
 }
 
 export async function selectFieldHandler(context: BotContext, command: ParsedCommand): Promise<BotResponse> {
@@ -52,7 +61,14 @@ export async function selectFieldHandler(context: BotContext, command: ParsedCom
       'Что внести?',
       '/water - полив',
       '/rain - осадки'
-    ].join('\n')
+    ].join('\n'),
+    attachments: commandButtonKeyboard(
+      [
+        { text: 'Полив', command: '/water' },
+        { text: 'Осадки', command: '/rain' }
+      ],
+      2
+    )
   };
 }
 
@@ -87,7 +103,8 @@ export async function beginFieldInputHandler(
       'сегодня 25',
       'завтра 18',
       '2026-07-10 12.5'
-    ].join('\n')
+    ].join('\n'),
+    attachments: commandButtonKeyboard([{ text: 'Отменить', command: '/cancel' }], 1)
   };
 }
 
@@ -158,7 +175,14 @@ function setPendingInput(
       '',
       '/confirm - сохранить',
       '/cancel - отменить'
-    ].join('\n')
+    ].join('\n'),
+    attachments: commandButtonKeyboard(
+      [
+        { text: 'Подтвердить', command: '/confirm' },
+        { text: 'Отменить', command: '/cancel' }
+      ],
+      2
+    )
   };
 }
 

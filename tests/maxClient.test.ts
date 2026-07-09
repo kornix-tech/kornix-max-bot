@@ -112,6 +112,29 @@ describe('MaxClient', () => {
     assert.equal(response.success, true);
   });
 
+  it('sends inline keyboard attachments with chat messages', async () => {
+    const attachments = [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: '1.1', payload: '/field 1.1' }]]
+        }
+      }
+    ];
+
+    mockPool
+      .intercept({
+        path: '/messages?chat_id=chat-1',
+        method: 'POST',
+        body: JSON.stringify({ text: 'choose', attachments })
+      })
+      .reply(200, { success: true, message: { message_id: 'mid-1' } });
+
+    const response = await createClient().sendMessageToChat('chat-1', 'choose', { attachments });
+
+    assert.equal(response.success, true);
+  });
+
   it('throws MaxApiError for 404 responses', async () => {
     mockPool
       .intercept({ path: '/messages?chat_id=missing-chat', method: 'POST' })

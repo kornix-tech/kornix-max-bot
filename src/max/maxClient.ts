@@ -203,6 +203,9 @@ export class MaxClient {
     options: MaxSendMessageOptions
   ): Promise<MaxSendMessageResponse> {
     const message: MaxOutgoingMessage = { text };
+    if (options.attachments !== undefined) {
+      message.attachments = options.attachments;
+    }
     if (options.notify !== undefined) {
       message.notify = options.notify;
     }

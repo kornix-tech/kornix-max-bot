@@ -204,7 +204,16 @@ describe('dispatchCommand', () => {
 
     assert.match((await dispatchCommand(parseCommand('/status'), context)).text, /productionStatus: ready/);
     assert.match((await dispatchCommand(parseCommand('/context'), context)).text, /Полей: 1/);
-    assert.match((await dispatchCommand(parseCommand('/fields'), context)).text, /Поле 1/);
+    const fieldsResponse = await dispatchCommand(parseCommand('/fields'), context);
+    assert.match(fieldsResponse.text, /Поле 1\.1/);
+    assert.deepEqual(fieldsResponse.attachments, [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: '1.1', payload: '/field 1.1' }]]
+        }
+      }
+    ]);
     assert.match((await dispatchCommand(parseCommand('/methods'), context)).text, /defaultMethodCode: simple/);
     assert.match((await dispatchCommand(parseCommand('/readiness'), context)).text, /status: pass/);
   });
@@ -219,8 +228,26 @@ describe('dispatchCommand', () => {
     const context = createContext();
 
     assert.match((await dispatchCommand(parseCommand('/fields'), context)).text, /Выберите поле/);
-    assert.match((await dispatchCommand(parseCommand('1.1'), context)).text, /Выбрано поле: Поле 1\.1/);
-    assert.match((await dispatchCommand(parseCommand('/water 2026-07-10 25'), context)).text, /Подтвердите ввод/);
+    const selectResponse = await dispatchCommand(parseCommand('1.1'), context);
+    assert.match(selectResponse.text, /Выбрано поле: Поле 1\.1/);
+    assert.deepEqual(selectResponse.attachments, [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: 'Полив', payload: '/water' }, { type: 'callback', text: 'Осадки', payload: '/rain' }]]
+        }
+      }
+    ]);
+    const pendingResponse = await dispatchCommand(parseCommand('/water 2026-07-10 25'), context);
+    assert.match(pendingResponse.text, /Подтвердите ввод/);
+    assert.deepEqual(pendingResponse.attachments, [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: 'Подтвердить', payload: '/confirm' }, { type: 'callback', text: 'Отменить', payload: '/cancel' }]]
+        }
+      }
+    ]);
     assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
   });
 

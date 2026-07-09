@@ -5,7 +5,7 @@ import type { ConversationStateStore } from '../bot/conversationState.js';
 import { formatBotError } from '../bot/messageFormatter.js';
 import type { KornixClient } from '../kornix/kornixClient.js';
 import type { MaxClient } from './maxClient.js';
-import type { MaxId, MaxMessage, MaxUpdate, MaxWebhookPayload } from './maxTypes.js';
+import type { MaxCallback, MaxId, MaxMessage, MaxUpdate, MaxWebhookPayload } from './maxTypes.js';
 import type { Logger } from '../utils/logger.js';
 
 export type MaxWebhookProcessOptions = {
@@ -27,6 +27,7 @@ type IncomingTextMessage = {
   userId: MaxId;
   chatId: MaxId | null;
   text: string;
+  callbackId: string | null;
 };
 
 export async function processMaxWebhook(options: MaxWebhookProcessOptions): Promise<MaxWebhookProcessResult> {
@@ -37,7 +38,7 @@ export async function processMaxWebhook(options: MaxWebhookProcessOptions): Prom
   }
 
   for (const update of updates) {
-    const incoming = extractTextMessage(update);
+    const incoming = extractTextMessage(update) ?? extractCallbackCommand(update);
     if (!incoming) {
       options.logger.info('max_webhook_ignored', {
         requestId: options.requestId,
@@ -83,7 +84,23 @@ export function extractTextMessage(update: MaxUpdate): IncomingTextMessage | nul
   if (!text || userId === null) {
     return null;
   }
-  return { update, userId, chatId, text };
+  return { update, userId, chatId, text, callbackId: null };
+}
+
+export function extractCallbackCommand(update: MaxUpdate): IncomingTextMessage | null {
+  const updateType = update.update_type ?? update.updateType;
+  if (updateType !== 'message_callback' || !update.callback) {
+    return null;
+  }
+
+  const text = callbackPayloadText(update.callback);
+  const userId = update.callback.user?.user_id ?? update.callback.user?.id ?? update.user?.user_id ?? update.user?.id ?? null;
+  const message = update.callback.message;
+  const chatId = message ? chatIdFromMessage(message, update) : update.chat_id ?? null;
+  if (!text || userId === null) {
+    return null;
+  }
+  return { update, userId, chatId, text, callbackId: update.callback.callback_id ?? null };
 }
 
 async function handleIncomingTextMessage(
@@ -103,23 +120,49 @@ async function handleIncomingTextMessage(
 
   try {
     const response = await dispatchCommand(command, context);
-    await sendReply(options.maxClient, incoming, response.text);
+    await sendReply(options.maxClient, incoming, response);
+    await answerCallbackSafely(options.maxClient, incoming.callbackId, options);
   } catch (error) {
     options.logger.error('max_webhook_command_failed', {
       requestId: options.requestId,
       commandType: command.type,
       message: error instanceof Error ? error.message : String(error)
     });
-    await sendReply(options.maxClient, incoming, formatBotError());
+    await sendReply(options.maxClient, incoming, { text: formatBotError() });
+    await answerCallbackSafely(options.maxClient, incoming.callbackId, options);
   }
 }
 
-async function sendReply(maxClient: MaxClient, incoming: IncomingTextMessage, text: string): Promise<void> {
-  if (incoming.chatId !== null) {
-    await maxClient.sendMessageToChat(incoming.chatId, text);
+async function answerCallbackSafely(
+  maxClient: MaxClient,
+  callbackId: string | null,
+  options: MaxWebhookProcessOptions
+): Promise<void> {
+  if (!callbackId) {
     return;
   }
-  await maxClient.sendMessageToUser(incoming.userId, text);
+  try {
+    await maxClient.answerCallback(callbackId);
+  } catch (error) {
+    options.logger.warn('max_callback_answer_failed', {
+      requestId: options.requestId,
+      callbackId,
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+async function sendReply(
+  maxClient: MaxClient,
+  incoming: IncomingTextMessage,
+  response: { text: string; attachments?: unknown[] | null }
+): Promise<void> {
+  const options = response.attachments === undefined ? undefined : { attachments: response.attachments };
+  if (incoming.chatId !== null) {
+    await maxClient.sendMessageToChat(incoming.chatId, response.text, options);
+    return;
+  }
+  await maxClient.sendMessageToUser(incoming.userId, response.text, options);
 }
 
 function isUpdateList(value: unknown): value is { updates: MaxUpdate[] } {
@@ -141,6 +184,13 @@ function messageText(message: MaxMessage): string | null {
   }
   if (typeof message.text === 'string') {
     return message.text;
+  }
+  return null;
+}
+
+function callbackPayloadText(callback: MaxCallback): string | null {
+  if (typeof callback.payload === 'string' && callback.payload.trim()) {
+    return callback.payload;
   }
   return null;
 }

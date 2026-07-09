@@ -21,4 +21,5 @@ export type ParsedCommand = {
 
 export type BotResponse = {
   text: string;
+  attachments?: unknown[] | null;
 };
