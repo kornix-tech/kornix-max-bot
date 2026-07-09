@@ -13,6 +13,8 @@ import type {
   KornixClientOptions,
   KornixCurrentContextDto,
   KornixCurrentIrrigationLayerDto,
+  KornixManualPrecipitationRequestDto,
+  KornixManualPrecipitationResponseDto,
   KornixMethodsResponseDto,
   KornixProfileTimeseriesDto,
   KornixReadinessDto
@@ -182,6 +184,15 @@ export class KornixClient {
 
   submitWaterRegimeApproval(payload: KornixApprovalRequestDto): Promise<KornixApprovalSubmitResponseDto> {
     return this.request<KornixApprovalSubmitResponseDto>(kornixEndpoints.waterRegimeApprovals, {
+      method: 'POST',
+      body: payload
+    });
+  }
+
+  submitManualPrecipitation(
+    payload: KornixManualPrecipitationRequestDto
+  ): Promise<KornixManualPrecipitationResponseDto> {
+    return this.request<KornixManualPrecipitationResponseDto>(kornixEndpoints.precipitationManual, {
       method: 'POST',
       body: payload
     });

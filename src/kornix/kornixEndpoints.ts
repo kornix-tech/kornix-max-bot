@@ -32,6 +32,7 @@ export const kornixEndpoints = {
   me: '/api/v2/me',
   methods: `${KORNIX_API_PREFIX}/methods`,
   waterRegimeApprovals: `${KORNIX_API_PREFIX}/water-regime/approvals`,
+  precipitationManual: `${KORNIX_API_PREFIX}/precipitation-layer/manual`,
 
   currentContext(seasonYear: number): string {
     return pathWithQuery(`${KORNIX_API_PREFIX}/current-context`, { seasonYear });

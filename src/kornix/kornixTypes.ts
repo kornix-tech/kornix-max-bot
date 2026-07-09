@@ -205,6 +205,21 @@ export type KornixApprovalStatusDto = {
   timing: JsonObject;
 };
 
+export type KornixManualPrecipitationRequestDto = {
+  seasonYear: number;
+  fieldSeasonId: string;
+  precipitationDate: string;
+  precipitationMm: number;
+  source: 'max_bot';
+  clientGeneratedAt?: string | null;
+};
+
+export type KornixManualPrecipitationResponseDto = {
+  status?: string;
+  warnings?: ApiWarningDto[];
+  [key: string]: JsonValue | ApiWarningDto[] | undefined;
+};
+
 export type KornixCalculationRunStatusDto = {
   calculationRunId: CalculationRunId;
   runKind: string;

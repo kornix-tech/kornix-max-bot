@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { dispatchCommand } from '../src/bot/commandDispatcher.js';
+import { ConversationStateStore } from '../src/bot/conversationState.js';
 import { parseCommand } from '../src/bot/commandParser.js';
 import type { BotContext } from '../src/bot/botContext.js';
 import type {
   FieldSeasonCatalogDto,
   KornixCurrentContextDto,
+  KornixCurrentIrrigationLayerDto,
   KornixMethodsResponseDto,
   KornixReadinessDto
 } from '../src/kornix/kornixTypes.js';
@@ -142,12 +144,40 @@ function catalogFixture(): FieldSeasonCatalogDto {
   };
 }
 
+function currentIrrigationLayerFixture(): KornixCurrentIrrigationLayerDto {
+  return {
+    organizationCode: 'SP',
+    seasonYear: 2026,
+    managedScope: {
+      dateFrom: '2026-06-14',
+      dateTo: '2026-07-12',
+      fieldSeasonIds: ['field-season-1'],
+      scopeVersion: 'scope-1',
+      scopeHash: 'hash-1'
+    },
+    irrigationLayer: [],
+    projectionHash: 'projection-1',
+    generatedAt: '2026-07-05T10:00:00+03:00'
+  };
+}
+
 function createContext(): BotContext {
   const kornixClient = {
     getReadinessCurrent: async () => readinessFixture(),
     getCurrentContext: async () => contextFixture(),
     getFieldSeasonCatalog: async () => catalogFixture(),
-    getMethods: async () => methodsFixture()
+    getMethods: async () => methodsFixture(),
+    getCurrentIrrigationLayer: async () => currentIrrigationLayerFixture(),
+    submitWaterRegimeApproval: async () => ({
+      approvalBatchId: 'approval-1',
+      calculationRunId: 'calc-1',
+      approvalStatus: 'pending_calculation',
+      calculationStatus: 'queued',
+      reusedPreviousCalculation: false,
+      pollRequired: true,
+      warnings: []
+    }),
+    submitManualPrecipitation: async () => ({ status: 'accepted' })
   } as unknown as KornixClient;
 
   return {
@@ -156,6 +186,7 @@ function createContext(): BotContext {
     chatId: 'chat-1',
     seasonYear: 2026,
     kornixClient,
+    conversationStore: new ConversationStateStore(),
     logger: logger()
   };
 }
@@ -182,5 +213,23 @@ describe('dispatchCommand', () => {
     const response = await dispatchCommand(parseCommand('/approve'), createContext());
 
     assert.match(response.text, /Неизвестная команда/);
+  });
+
+  it('supports field selection and confirmed irrigation input', async () => {
+    const context = createContext();
+
+    assert.match((await dispatchCommand(parseCommand('/fields'), context)).text, /Выберите поле/);
+    assert.match((await dispatchCommand(parseCommand('1'), context)).text, /Выбрано поле/);
+    assert.match((await dispatchCommand(parseCommand('/water 2026-07-10 25'), context)).text, /Подтвердите ввод/);
+    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
+  });
+
+  it('supports manual precipitation input', async () => {
+    const context = createContext();
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1'), context);
+    assert.match((await dispatchCommand(parseCommand('/rain 2026-07-10 12.5'), context)).text, /Осадки: 12.5 мм/);
+    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Осадки отправлены/);
   });
 });

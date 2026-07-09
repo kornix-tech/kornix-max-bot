@@ -5,6 +5,11 @@ export type BotCommandName =
   | 'status'
   | 'context'
   | 'fields'
+  | 'field'
+  | 'water'
+  | 'rain'
+  | 'confirm'
+  | 'cancel'
   | 'methods'
   | 'readiness';
 

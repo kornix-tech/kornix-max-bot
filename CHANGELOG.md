@@ -2,6 +2,7 @@
 
 ## 2026-07-09
 
+- Реализован пользовательский MAX-flow выбора поля и ввода фактов: `/fields`, `/field`, `/water`, `/rain`, `/confirm`, `/cancel`, чтобы пользователи могли вносить поливы через existing approval workflow и осадки через manual precipitation endpoint KORNIX.
 - Добавлена настройка `KORNIX_INTERNAL_SERVICE_IDENTITY` с production-дефолтом `operational-scheduler`, чтобы MAX bot проходил internal-service auth текущего KORNIX backend на VDS.
 
 ## 2026-07-05

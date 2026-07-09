@@ -11,6 +11,14 @@ describe('parseCommand', () => {
     assert.deepEqual(command.args, ['north', '10']);
   });
 
+  it('parses field input workflow commands', () => {
+    assert.equal(parseCommand('/field 3').type, 'field');
+    assert.equal(parseCommand('/water today 25').type, 'water');
+    assert.equal(parseCommand('/rain 2026-07-10 12').type, 'rain');
+    assert.equal(parseCommand('/confirm').type, 'confirm');
+    assert.equal(parseCommand('/cancel').type, 'cancel');
+  });
+
   it('returns unknown for unsupported commands', () => {
     const command = parseCommand('/approve now');
 

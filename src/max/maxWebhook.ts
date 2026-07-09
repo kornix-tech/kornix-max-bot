@@ -1,6 +1,7 @@
 import { parseCommand } from '../bot/commandParser.js';
 import { dispatchCommand } from '../bot/commandDispatcher.js';
 import type { BotContext } from '../bot/botContext.js';
+import type { ConversationStateStore } from '../bot/conversationState.js';
 import { formatBotError } from '../bot/messageFormatter.js';
 import type { KornixClient } from '../kornix/kornixClient.js';
 import type { MaxClient } from './maxClient.js';
@@ -13,6 +14,7 @@ export type MaxWebhookProcessOptions = {
   seasonYear: number;
   kornixClient: KornixClient;
   maxClient: MaxClient;
+  conversationStore: ConversationStateStore;
   logger: Logger;
 };
 
@@ -95,6 +97,7 @@ async function handleIncomingTextMessage(
     chatId: incoming.chatId,
     seasonYear: options.seasonYear,
     kornixClient: options.kornixClient,
+    conversationStore: options.conversationStore,
     logger: options.logger
   };
 

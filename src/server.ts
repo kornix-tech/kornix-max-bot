@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { loadConfig } from './config/config.js';
 import { createMaxWebhookHttpHandler, healthHandler } from './handlers/index.js';
+import { ConversationStateStore } from './bot/conversationState.js';
 import { KornixClient } from './kornix/kornixClient.js';
 import { MaxClient } from './max/maxClient.js';
 import { createLogger } from './utils/logger.js';
@@ -8,6 +9,7 @@ import { sendMethodNotAllowed, sendNotFound } from './utils/http.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
+const conversationStore = new ConversationStateStore();
 const kornixClient = new KornixClient(
   {
     baseUrl: config.kornixApiBaseUrl,
@@ -30,7 +32,8 @@ const maxWebhookHandler = createMaxWebhookHttpHandler({
   webhookSecret: config.maxWebhookSecret,
   defaultSeasonYear: config.defaultSeasonYear,
   kornixClient,
-  maxClient
+  maxClient,
+  conversationStore
 });
 
 const server = createServer(async (request, response) => {

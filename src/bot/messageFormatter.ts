@@ -8,19 +8,43 @@ import type {
 const COMMAND_LINES = [
   '/start - начать работу',
   '/help - показать команды',
+  '/fields - выбрать поле',
+  '/field номер - выбрать поле из списка',
+  '/water - внести полив по выбранному полю',
+  '/rain - внести осадки по выбранному полю',
+  '/confirm - подтвердить ввод',
+  '/cancel - отменить черновик',
   '/status - краткий статус KORNIX',
-  '/context - текущий контекст сезона',
-  '/fields - первые 10 полей',
-  '/methods - доступные методы расчёта',
   '/readiness - подробная готовность'
 ];
 
 export function formatStart(): string {
-  return ['KORNIX MAX BOT', 'Read-only режим.', '', 'Команды:', ...COMMAND_LINES].join('\n');
+  return [
+    'KORNIX MAX BOT',
+    'Ввод поливов и осадков по полям.',
+    '',
+    'Быстрый сценарий:',
+    '1. /fields',
+    '2. отправьте номер поля',
+    '3. /water или /rain',
+    '4. введите дату и мм: сегодня 25',
+    '5. /confirm',
+    '',
+    'Команды:',
+    ...COMMAND_LINES
+  ].join('\n');
 }
 
 export function formatHelp(): string {
-  return ['Доступные команды:', ...COMMAND_LINES, '', 'Поливы и approvals пока отключены.'].join('\n');
+  return [
+    'Доступные команды:',
+    ...COMMAND_LINES,
+    '',
+    'Дата и мм:',
+    'сегодня 25',
+    'завтра 18',
+    '2026-07-10 12.5'
+  ].join('\n');
 }
 
 export function formatUnknownCommand(rawText: string): string {

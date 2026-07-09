@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { extractTextMessage, parseUpdates, processMaxWebhook } from '../src/max/maxWebhook.js';
+import { ConversationStateStore } from '../src/bot/conversationState.js';
 import type { KornixClient } from '../src/kornix/kornixClient.js';
 import type { MaxClient } from '../src/max/maxClient.js';
 import type { MaxId, MaxUpdate } from '../src/max/maxTypes.js';
@@ -108,6 +109,7 @@ describe('maxWebhook', () => {
       seasonYear: 2026,
       kornixClient: createKornixClient(),
       maxClient: createMaxClient(sent),
+      conversationStore: new ConversationStateStore(),
       logger: logger()
     });
 
@@ -125,6 +127,7 @@ describe('maxWebhook', () => {
       seasonYear: 2026,
       kornixClient: createKornixClient(),
       maxClient: createMaxClient(sent),
+      conversationStore: new ConversationStateStore(),
       logger: logger()
     });
 
@@ -140,6 +143,7 @@ describe('maxWebhook', () => {
       seasonYear: 2026,
       kornixClient: createKornixClient(true),
       maxClient: createMaxClient(sent),
+      conversationStore: new ConversationStateStore(),
       logger: logger()
     });
 

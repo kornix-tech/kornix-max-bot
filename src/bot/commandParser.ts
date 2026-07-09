@@ -6,6 +6,12 @@ const COMMAND_ALIASES = new Map<string, ParsedCommand['type']>([
   ['/status', 'status'],
   ['/context', 'context'],
   ['/fields', 'fields'],
+  ['/field', 'field'],
+  ['/select', 'field'],
+  ['/water', 'water'],
+  ['/rain', 'rain'],
+  ['/confirm', 'confirm'],
+  ['/cancel', 'cancel'],
   ['/methods', 'methods'],
   ['/readiness', 'readiness']
 ]);

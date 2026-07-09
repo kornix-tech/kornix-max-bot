@@ -3,6 +3,7 @@ import type { HttpHandler } from '../types/http.js';
 import type { Logger } from '../utils/logger.js';
 import { readRequestBody } from '../middlewares/readRequestBody.js';
 import { processMaxWebhook } from '../max/maxWebhook.js';
+import type { ConversationStateStore } from '../bot/conversationState.js';
 import { verifyMaxWebhookSecret } from '../max/webhookVerifier.js';
 import { sendJson } from '../utils/http.js';
 import type { KornixClient } from '../kornix/kornixClient.js';
@@ -14,6 +15,7 @@ export type MaxWebhookHttpHandlerOptions = {
   defaultSeasonYear: number;
   kornixClient: KornixClient;
   maxClient: MaxClient;
+  conversationStore: ConversationStateStore;
 };
 
 export function createMaxWebhookHttpHandler(options: MaxWebhookHttpHandlerOptions): HttpHandler {
@@ -33,6 +35,7 @@ export function createMaxWebhookHttpHandler(options: MaxWebhookHttpHandlerOption
       seasonYear: options.defaultSeasonYear,
       kornixClient: options.kornixClient,
       maxClient: options.maxClient,
+      conversationStore: options.conversationStore,
       logger: options.logger
     });
 
