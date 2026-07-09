@@ -36,7 +36,7 @@ function createClient(timeoutMs = 500): KornixClient {
     {
       baseUrl: BASE_URL,
       serviceToken: 'service-token',
-      internalServiceIdentity: 'operational-scheduler',
+      internalServiceIdentity: 'max-bot',
       timeoutMs
     },
     createLogger()
@@ -54,7 +54,7 @@ async function captureError(promise: Promise<unknown>): Promise<unknown> {
 
 function currentUserFixture(): CurrentUserDto {
   return {
-    id: 'internal-service:operational-scheduler',
+    id: 'internal-service:max-bot',
     displayName: 'KORNIX Operational Scheduler',
     email: null,
     organizationCode: 'SP',
@@ -143,14 +143,14 @@ describe('KornixClient', () => {
         method: 'GET',
         headers: {
           authorization: 'Bearer service-token',
-          'x-kornix-internal-service': 'operational-scheduler'
+          'x-kornix-internal-service': 'max-bot'
         }
       })
       .reply(200, currentUserFixture());
 
     const response = await createClient().getMe();
 
-    assert.equal(response.id, 'internal-service:operational-scheduler');
+    assert.equal(response.id, 'internal-service:max-bot');
     assert.equal(logs[0]?.message, 'kornix_request_started');
     assert.equal(logs[1]?.message, 'kornix_request_finished');
     assert.equal(logs[1]?.meta?.status, 200);
