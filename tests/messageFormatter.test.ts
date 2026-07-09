@@ -99,8 +99,8 @@ function contextFixture(): KornixCurrentContextDto {
 
 describe('messageFormatter', () => {
   it('formats command lists without markdown requirements', () => {
-    assert.match(formatStart(), /KORNIX MAX BOT/);
-    assert.match(formatHelp(), /\/readiness/);
+    assert.match(formatStart(), /КОРНИКС МАКС БОТ/);
+    assert.match(formatHelp(), /Нажмите кнопку/);
     assert.match(formatUnknownCommand('/wat'), /Неизвестная команда: \/wat/);
   });
 

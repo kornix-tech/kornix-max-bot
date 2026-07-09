@@ -5,40 +5,15 @@ import type {
   KornixReadinessDto
 } from '../kornix/kornixTypes.js';
 
-const COMMAND_LINES = [
-  '/start - начать работу',
-  '/help - показать команды',
-  '/fields - выбрать поле',
-  '/field номер - выбрать поле из списка',
-  '/water - внести полив по выбранному полю',
-  '/rain - внести осадки по выбранному полю',
-  '/confirm - подтвердить ввод',
-  '/cancel - отменить черновик',
-  '/status - краткий статус KORNIX',
-  '/readiness - подробная готовность'
-];
-
 export function formatStart(): string {
-  return [
-    'KORNIX MAX BOT',
-    'Ввод поливов и осадков по полям.',
-    '',
-    'Быстрый сценарий:',
-    '1. /fields',
-    '2. отправьте номер поля',
-    '3. /water или /rain',
-    '4. введите дату и мм: сегодня 25',
-    '5. /confirm',
-    '',
-    'Команды:',
-    ...COMMAND_LINES
-  ].join('\n');
+  return ['КОРНИКС МАКС БОТ', 'Ввод поливов и осадков по полям.'].join('\n');
 }
 
 export function formatHelp(): string {
   return [
-    'Доступные команды:',
-    ...COMMAND_LINES,
+    'КОРНИКС МАКС БОТ',
+    'Ввод поливов и осадков по полям.',
+    'Нажмите кнопку, чтобы выбрать поле.',
     '',
     'Дата и мм:',
     'сегодня 25',

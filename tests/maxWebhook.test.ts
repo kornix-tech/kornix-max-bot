@@ -106,6 +106,22 @@ function callbackUpdate(payload: string): MaxUpdate {
   };
 }
 
+function callbackUpdateWithTopLevelMessage(payload: string): MaxUpdate {
+  return {
+    update_type: 'message_callback',
+    timestamp: 1,
+    callback: {
+      callback_id: 'callback-1',
+      payload,
+      user: { user_id: 'user-1' }
+    },
+    message: {
+      recipient: { chat_id: 'chat-1' },
+      body: { text: 'Выберите поле' }
+    }
+  };
+}
+
 describe('maxWebhook', () => {
   it('parses single updates and update lists', () => {
     assert.equal(parseUpdates(JSON.stringify(messageUpdate('/help'))).length, 1);
@@ -130,6 +146,14 @@ describe('maxWebhook', () => {
     assert.equal(incoming?.callbackId, 'callback-1');
   });
 
+  it('extracts callback chat identity from a top-level message sibling', () => {
+    const incoming = extractCallbackCommand(callbackUpdateWithTopLevelMessage('/field 1.1'));
+
+    assert.equal(incoming?.userId, 'user-1');
+    assert.equal(incoming?.chatId, 'chat-1');
+    assert.equal(incoming?.text, '/field 1.1');
+  });
+
   it('dispatches text commands and sends a chat reply', async () => {
     const sent: SentMessage[] = [];
     const result = await processMaxWebhook({
@@ -145,7 +169,15 @@ describe('maxWebhook', () => {
     assert.deepEqual(result, { ok: true, handled: true });
     assert.equal(sent.length, 1);
     assert.equal(sent[0]?.target, 'chat');
-    assert.match(sent[0]?.text ?? '', /Доступные команды/);
+    assert.match(sent[0]?.text ?? '', /Нажмите кнопку/);
+    assert.deepEqual(sent[0]?.attachments, [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: 'Выбрать поле', payload: '/fields' }]]
+        }
+      }
+    ]);
   });
 
   it('dispatches callback commands and sends keyboard replies', async () => {
@@ -184,7 +216,7 @@ describe('maxWebhook', () => {
 
     assert.deepEqual(result, { ok: true, handled: true });
     assert.equal(sent.length, 1);
-    assert.match(sent[0]?.text ?? '', /Поле 1\.1/);
+    assert.equal(sent[0]?.text, 'Выберите поле');
     assert.deepEqual(sent[0]?.attachments, [
       {
         type: 'inline_keyboard',

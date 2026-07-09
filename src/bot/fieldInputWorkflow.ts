@@ -22,19 +22,17 @@ export async function listFieldsForSelection(context: BotContext): Promise<BotRe
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.lastFields = catalog.fields;
 
-  const lines = catalog.fields.slice(0, 20).map((field) => `Поле ${fieldNumber(field)} - ${fieldDetails(field)}`);
-  const tail =
-    catalog.fields.length > 20
-      ? [`Показаны первые 20 из ${catalog.fields.length}. Напишите /field 1.11.`]
-      : [`Всего полей: ${catalog.fields.length}. Напишите номер поля, например 1.11, или /field 1.11.`];
-
   const fieldButtons = catalog.fields.slice(0, 40).map((field) => {
     const number = fieldNumber(field);
     return { text: number, command: `/field ${number}` };
   });
 
+  if (!fieldButtons.length) {
+    return { text: 'Поля KORNIX не найдены.' };
+  }
+
   return {
-    text: ['Выберите поле KORNIX', ...lines, ...tail].join('\n'),
+    text: 'Выберите поле',
     attachments: commandButtonKeyboard(fieldButtons, 4)
   };
 }
@@ -56,11 +54,10 @@ export async function selectFieldHandler(context: BotContext, command: ParsedCom
 
   return {
     text: [
-      `Выбрано поле: ${fieldLabel(field)}`,
+      `Выбрано поле ${fieldNumber(field)}`,
+      fieldDetails(field),
       '',
-      'Что внести?',
-      '/water - полив',
-      '/rain - осадки'
+      'Что внести?'
     ].join('\n'),
     attachments: commandButtonKeyboard(
       [
@@ -80,9 +77,11 @@ export async function beginFieldInputHandler(
   const state = context.conversationStore.get(context.userId, context.chatId);
   if (!state.selectedField) {
     const fields = await listFieldsForSelection(context);
-    return {
-      text: [fields.text, '', `Сначала выберите поле, потом повторите ${kind === 'water' ? '/water' : '/rain'}.`].join('\n')
-    };
+    const response: BotResponse = { text: 'Сначала выберите поле.' };
+    if (fields.attachments !== undefined) {
+      response.attachments = fields.attachments;
+    }
+    return response;
   }
 
   const inline = command.args.join(' ').trim();
@@ -98,8 +97,8 @@ export async function beginFieldInputHandler(
   state.pendingInput = null;
   return {
     text: [
-      `${kindLabel(kind)} для поля: ${fieldLabel(state.selectedField)}`,
-      'Введите дату и мм:',
+      `${kindLabel(kind)} для поля ${fieldNumber(state.selectedField)}`,
+      'Введите дату и количество мм одним сообщением:',
       'сегодня 25',
       'завтра 18',
       '2026-07-10 12.5'
@@ -130,7 +129,10 @@ export async function workflowTextInputHandler(context: BotContext, command: Par
 export async function confirmHandler(context: BotContext): Promise<BotResponse> {
   const state = context.conversationStore.get(context.userId, context.chatId);
   if (!state.pendingInput) {
-    return { text: 'Нет черновика для подтверждения. Выберите поле через /fields и внесите /water или /rain.' };
+    return {
+      text: 'Нет черновика для подтверждения. Выберите поле.',
+      attachments: chooseFieldKeyboard()
+    };
   }
 
   const pending = state.pendingInput;
@@ -138,7 +140,10 @@ export async function confirmHandler(context: BotContext): Promise<BotResponse> 
     const response = pending.kind === 'water' ? await submitWater(context, pending) : await submitRain(context, pending);
     state.pendingInput = null;
     state.awaitingInput = null;
-    return { text: response };
+    return {
+      text: response,
+      attachments: chooseFieldKeyboard()
+    };
   } catch (error) {
     return { text: formatSubmitError(error, pending.kind) };
   }
@@ -148,7 +153,17 @@ export async function cancelHandler(context: BotContext): Promise<BotResponse> {
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.awaitingInput = null;
   state.pendingInput = null;
-  return { text: 'Черновик отменён. Выбранное поле сохранено.' };
+  return {
+    text: 'Черновик отменён. Выбранное поле сохранено.',
+    attachments: commandButtonKeyboard(
+      [
+        { text: 'Полив', command: '/water' },
+        { text: 'Осадки', command: '/rain' },
+        { text: 'Выбрать поле', command: '/fields' }
+      ],
+      2
+    )
+  };
 }
 
 function setPendingInput(
@@ -169,12 +184,9 @@ function setPendingInput(
   return {
     text: [
       'Подтвердите ввод:',
-      `Поле: ${fieldLabel(field)}`,
+      `Поле: ${fieldNumber(field)}`,
       `${kindLabel(kind)}: ${formatMm(parsed.mm)} мм`,
-      `Дата: ${parsed.date}`,
-      '',
-      '/confirm - сохранить',
-      '/cancel - отменить'
+      `Дата: ${parsed.date}`
     ].join('\n'),
     attachments: commandButtonKeyboard(
       [
@@ -370,6 +382,10 @@ function formatSubmitError(error: unknown, kind: InputKind): string {
     return `Не удалось сохранить ${label}: ${error.message}`;
   }
   return `Не удалось сохранить ${label}. Попробуйте позже.`;
+}
+
+function chooseFieldKeyboard() {
+  return commandButtonKeyboard([{ text: 'Выбрать поле', command: '/fields' }], 1);
 }
 
 function inputExample(kind: InputKind): string {

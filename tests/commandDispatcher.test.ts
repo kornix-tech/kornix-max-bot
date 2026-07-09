@@ -195,8 +195,15 @@ describe('dispatchCommand', () => {
   it('dispatches static commands', async () => {
     const response = await dispatchCommand(parseCommand('/start'), createContext());
 
-    assert.match(response.text, /KORNIX MAX BOT/);
-    assert.match(response.text, /\/status/);
+    assert.equal(response.text, ['КОРНИКС МАКС БОТ', 'Ввод поливов и осадков по полям.'].join('\n'));
+    assert.deepEqual(response.attachments, [
+      {
+        type: 'inline_keyboard',
+        payload: {
+          buttons: [[{ type: 'callback', text: 'Выбрать поле', payload: '/fields' }]]
+        }
+      }
+    ]);
   });
 
   it('dispatches KORNIX-backed read-only commands', async () => {
@@ -205,7 +212,7 @@ describe('dispatchCommand', () => {
     assert.match((await dispatchCommand(parseCommand('/status'), context)).text, /productionStatus: ready/);
     assert.match((await dispatchCommand(parseCommand('/context'), context)).text, /Полей: 1/);
     const fieldsResponse = await dispatchCommand(parseCommand('/fields'), context);
-    assert.match(fieldsResponse.text, /Поле 1\.1/);
+    assert.equal(fieldsResponse.text, 'Выберите поле');
     assert.deepEqual(fieldsResponse.attachments, [
       {
         type: 'inline_keyboard',
@@ -229,7 +236,8 @@ describe('dispatchCommand', () => {
 
     assert.match((await dispatchCommand(parseCommand('/fields'), context)).text, /Выберите поле/);
     const selectResponse = await dispatchCommand(parseCommand('1.1'), context);
-    assert.match(selectResponse.text, /Выбрано поле: Поле 1\.1/);
+    assert.match(selectResponse.text, /Выбрано поле 1\.1/);
+    assert.match(selectResponse.text, /12.5 га, Пшеница/);
     assert.deepEqual(selectResponse.attachments, [
       {
         type: 'inline_keyboard',
@@ -240,6 +248,8 @@ describe('dispatchCommand', () => {
     ]);
     const pendingResponse = await dispatchCommand(parseCommand('/water 2026-07-10 25'), context);
     assert.match(pendingResponse.text, /Подтвердите ввод/);
+    assert.match(pendingResponse.text, /Поле: 1\.1/);
+    assert.doesNotMatch(pendingResponse.text, /\/confirm/);
     assert.deepEqual(pendingResponse.attachments, [
       {
         type: 'inline_keyboard',

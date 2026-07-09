@@ -47,6 +47,13 @@ export async function processMaxWebhook(options: MaxWebhookProcessOptions): Prom
       continue;
     }
 
+    if (incoming.callbackId) {
+      options.logger.info('max_webhook_callback_received', {
+        requestId: options.requestId,
+        callbackId: incoming.callbackId,
+        command: incoming.text
+      });
+    }
     await handleIncomingTextMessage(incoming, options);
     return { ok: true, handled: true };
   }
@@ -95,7 +102,7 @@ export function extractCallbackCommand(update: MaxUpdate): IncomingTextMessage |
 
   const text = callbackPayloadText(update.callback);
   const userId = update.callback.user?.user_id ?? update.callback.user?.id ?? update.user?.user_id ?? update.user?.id ?? null;
-  const message = update.callback.message;
+  const message = update.callback.message ?? update.message;
   const chatId = message ? chatIdFromMessage(message, update) : update.chat_id ?? null;
   if (!text || userId === null) {
     return null;
