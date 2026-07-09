@@ -2,6 +2,7 @@
 
 ## 2026-07-09
 
+- Исправлен список выбора полей в MAX: поля показываются по агрономическим номерам (`1.1`, `1.11`) без дублирования `SP:` и выбираются по этим номерам.
 - Реализован пользовательский MAX-flow выбора поля и ввода фактов: `/fields`, `/field`, `/water`, `/rain`, `/confirm`, `/cancel`, чтобы пользователи могли вносить поливы через existing approval workflow и осадки через manual precipitation endpoint KORNIX.
 - Добавлена настройка `KORNIX_INTERNAL_SERVICE_IDENTITY` с production-дефолтом `operational-scheduler`, чтобы MAX bot проходил internal-service auth текущего KORNIX backend на VDS.
 

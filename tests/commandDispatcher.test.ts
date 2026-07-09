@@ -130,8 +130,8 @@ function catalogFixture(): FieldSeasonCatalogDto {
       {
         fieldId: 'field-1',
         fieldSeasonId: 'field-season-1',
-        fieldKey: 'F-1',
-        fieldName: 'Поле 1',
+        fieldKey: 'SP:1.1',
+        fieldName: 'SP:1.1',
         areaHa: 12.5,
         cropName: 'Пшеница',
         cropSowingDate: null,
@@ -219,7 +219,7 @@ describe('dispatchCommand', () => {
     const context = createContext();
 
     assert.match((await dispatchCommand(parseCommand('/fields'), context)).text, /Выберите поле/);
-    assert.match((await dispatchCommand(parseCommand('1'), context)).text, /Выбрано поле/);
+    assert.match((await dispatchCommand(parseCommand('1.1'), context)).text, /Выбрано поле: Поле 1\.1/);
     assert.match((await dispatchCommand(parseCommand('/water 2026-07-10 25'), context)).text, /Подтвердите ввод/);
     assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
   });

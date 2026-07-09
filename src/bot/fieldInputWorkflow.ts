@@ -21,11 +21,11 @@ export async function listFieldsForSelection(context: BotContext): Promise<BotRe
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.lastFields = catalog.fields;
 
-  const lines = catalog.fields.slice(0, 20).map((field, index) => `${index + 1}. ${fieldLabel(field)}`);
+  const lines = catalog.fields.slice(0, 20).map((field) => `Поле ${fieldNumber(field)} - ${fieldDetails(field)}`);
   const tail =
     catalog.fields.length > 20
-      ? [`Показаны первые 20 из ${catalog.fields.length}. Напишите /field номер.`]
-      : [`Всего полей: ${catalog.fields.length}. Напишите номер поля или /field номер.`];
+      ? [`Показаны первые 20 из ${catalog.fields.length}. Напишите /field 1.11.`]
+      : [`Всего полей: ${catalog.fields.length}. Напишите номер поля, например 1.11, или /field 1.11.`];
 
   return { text: ['Выберите поле KORNIX', ...lines, ...tail].join('\n') };
 }
@@ -103,7 +103,7 @@ export async function workflowTextInputHandler(context: BotContext, command: Par
     return setPendingInput(context, state.awaitingInput, state.selectedField, parsed);
   }
 
-  if (/^\d+$/.test(raw)) {
+  if (/^\d+(?:\.\d+)?$/.test(raw)) {
     return selectFieldHandler(context, { ...command, args: [raw] });
   }
 
@@ -169,12 +169,20 @@ async function resolveField(context: BotContext, query: string): Promise<FieldSe
     state.lastFields = catalog.fields;
   }
 
+  const normalized = normalize(query);
+  const normalizedFieldNumber = normalizeFieldNumber(query);
+  if (normalizedFieldNumber) {
+    const byFieldNumber = state.lastFields.find((field) => normalize(fieldNumber(field)) === normalizedFieldNumber);
+    if (byFieldNumber) {
+      return byFieldNumber;
+    }
+  }
+
   const index = Number(query);
   if (Number.isInteger(index) && index > 0) {
     return state.lastFields[index - 1] ?? null;
   }
 
-  const normalized = normalize(query);
   return (
     state.lastFields.find((field) =>
       [field.fieldName, field.fieldKey, field.fieldSeasonId].some((value) => normalize(value).includes(normalized))
@@ -368,8 +376,31 @@ function normalize(value: string | null | undefined): string {
 }
 
 function fieldLabel(field: FieldSeasonCatalogFieldDto): string {
+  return `Поле ${fieldNumber(field)} (${fieldDetails(field)})`;
+}
+
+function fieldDetails(field: FieldSeasonCatalogFieldDto): string {
   const crop = field.cropName ? `, ${field.cropName}` : '';
-  return `${field.fieldName} (${field.fieldKey}, ${field.areaHa} га${crop})`;
+  return `${formatArea(field.areaHa)} га${crop}`;
+}
+
+function fieldNumber(field: FieldSeasonCatalogFieldDto): string {
+  return stripFieldPrefix(field.fieldKey) || stripFieldPrefix(field.fieldName) || field.fieldKey || field.fieldName;
+}
+
+function stripFieldPrefix(value: string | null | undefined): string {
+  const raw = (value ?? '').trim();
+  const match = /(?:^|:)(\d+(?:\.\d+)*)$/.exec(raw);
+  return match?.[1] ?? raw;
+}
+
+function normalizeFieldNumber(value: string): string {
+  return stripFieldPrefix(value).toLowerCase();
+}
+
+function formatArea(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
 function kindLabel(kind: InputKind): string {
