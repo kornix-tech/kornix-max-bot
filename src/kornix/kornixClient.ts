@@ -136,12 +136,14 @@ async function readJson(response: Response): Promise<unknown> {
 export class KornixClient {
   readonly baseUrl: string;
   readonly serviceToken: string;
+  readonly internalServiceIdentity: string;
   readonly timeoutMs: number;
   private readonly logger: KornixLogger;
 
   constructor(options: KornixClientOptions, logger: KornixLogger = console) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
     this.serviceToken = options.serviceToken.trim();
+    this.internalServiceIdentity = options.internalServiceIdentity.trim();
     this.timeoutMs = ensurePositiveTimeout(options.timeoutMs);
     this.logger = logger;
   }
@@ -200,7 +202,7 @@ export class KornixClient {
 
     if (this.serviceToken) {
       headers.Authorization = `Bearer ${this.serviceToken}`;
-      headers['X-Kornix-Internal-Service'] = 'operational-watchdog';
+      headers['X-Kornix-Internal-Service'] = this.internalServiceIdentity;
     }
     if (options.body !== undefined) {
       headers['Content-Type'] = 'application/json';

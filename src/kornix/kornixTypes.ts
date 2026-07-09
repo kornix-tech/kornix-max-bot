@@ -462,5 +462,6 @@ export type GetProfileTimeseriesParams = {
 export type KornixClientOptions = {
   baseUrl: string;
   serviceToken: string;
+  internalServiceIdentity: string;
   timeoutMs: number;
 };

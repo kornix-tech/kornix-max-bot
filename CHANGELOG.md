@@ -1,5 +1,9 @@
 # Журнал изменений
 
+## 2026-07-09
+
+- Добавлена настройка `KORNIX_INTERNAL_SERVICE_IDENTITY` с production-дефолтом `operational-scheduler`, чтобы MAX bot проходил internal-service auth текущего KORNIX backend на VDS.
+
 ## 2026-07-05
 
 - Добавлен production deploy scaffold для VDS: `Dockerfile`, `.dockerignore`, `.env.production.example`, `deploy/docker-compose.bot.yml`, Caddy snippet, smoke script и VDS runbook, чтобы read-only MAX bot можно было собрать и подключить к существующему Caddy/Docker контуру.

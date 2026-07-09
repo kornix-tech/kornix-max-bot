@@ -12,6 +12,7 @@ const kornixClient = new KornixClient(
   {
     baseUrl: config.kornixApiBaseUrl,
     serviceToken: config.kornixServiceToken,
+    internalServiceIdentity: config.kornixInternalServiceIdentity,
     timeoutMs: 30_000
   },
   logger

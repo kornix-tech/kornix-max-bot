@@ -7,6 +7,7 @@ export type AppConfig = {
   kornixApiBaseUrl: string;
   kornixApiPrefix: string;
   kornixServiceToken: string;
+  kornixInternalServiceIdentity: string;
   maxBotToken: string;
   maxWebhookSecret: string;
   maxApiBaseUrl: string;
