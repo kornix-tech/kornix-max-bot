@@ -13,6 +13,7 @@ import type {
   KornixClientOptions,
   KornixCurrentContextDto,
   KornixCurrentIrrigationLayerDto,
+  KornixCurrentPrecipitationLayerDto,
   KornixManualPrecipitationRequestDto,
   KornixManualPrecipitationResponseDto,
   KornixMethodsResponseDto,
@@ -168,6 +169,10 @@ export class KornixClient {
 
   getCurrentIrrigationLayer(seasonYear: number): Promise<KornixCurrentIrrigationLayerDto> {
     return this.request<KornixCurrentIrrigationLayerDto>(kornixEndpoints.currentIrrigationLayer(seasonYear));
+  }
+
+  getCurrentPrecipitationLayer(seasonYear: number): Promise<KornixCurrentPrecipitationLayerDto> {
+    return this.request<KornixCurrentPrecipitationLayerDto>(kornixEndpoints.currentPrecipitationLayer(seasonYear));
   }
 
   getFieldSeasonCatalog(seasonYear: number): Promise<FieldSeasonCatalogDto> {

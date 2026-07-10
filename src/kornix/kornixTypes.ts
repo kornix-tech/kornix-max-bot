@@ -159,6 +159,25 @@ export type KornixCurrentIrrigationLayerDto = {
   generatedAt: string;
 };
 
+export type KornixCurrentPrecipitationLayerCellDto = {
+  fieldSeasonId: string;
+  day: string;
+  rainGaugeMm: number | null;
+  meteoMm: number | null;
+  manualMm: number | null;
+  acceptedMm: number | null;
+  acceptedSource: 'manual' | 'rain_gauge' | 'meteo' | 'none';
+};
+
+export type KornixCurrentPrecipitationLayerDto = {
+  organizationCode: string;
+  seasonYear: number;
+  managedScope: KornixManagedScopeDto;
+  precipitationLayer: KornixCurrentPrecipitationLayerCellDto[];
+  projectionHash: string;
+  generatedAt: string;
+};
+
 export type KornixApprovalIrrigationCellDto = {
   fieldSeasonId: string;
   irrigationDate: string;
@@ -207,17 +226,28 @@ export type KornixApprovalStatusDto = {
 
 export type KornixManualPrecipitationRequestDto = {
   seasonYear: number;
+  baseCalculationRunId: string;
+  approvalClientGeneratedAt?: string | null;
+  managedScope: KornixApprovalManagedScopeDto;
+  precipitationLayer: KornixManualPrecipitationCellDto[];
+  clientDiff?: KornixApprovalClientDiffDto | null;
+};
+
+export type KornixManualPrecipitationCellDto = {
   fieldSeasonId: string;
-  precipitationDate: string;
+  day: string;
   precipitationMm: number;
-  source: 'max_bot';
-  clientGeneratedAt?: string | null;
 };
 
 export type KornixManualPrecipitationResponseDto = {
-  status?: string;
-  warnings?: ApiWarningDto[];
-  [key: string]: JsonValue | ApiWarningDto[] | undefined;
+  precipitationBatchId: string;
+  calculationRunId: CalculationRunId | null;
+  approvalStatus: 'no_changes' | 'pending_calculation' | 'applied' | 'calculation_failed';
+  calculationStatus: 'reused_existing' | 'queued' | 'running' | 'completed' | 'failed' | 'not_available';
+  reusedPreviousCalculation: boolean;
+  pollRequired: boolean;
+  pollAfterMs?: number | null;
+  warnings: ApiWarningDto[];
 };
 
 export type KornixCalculationRunStatusDto = {

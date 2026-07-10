@@ -10,6 +10,9 @@ import type {
   KornixApprovalSubmitResponseDto,
   KornixCurrentContextDto,
   KornixCurrentIrrigationLayerDto,
+  KornixCurrentPrecipitationLayerDto,
+  KornixManualPrecipitationRequestDto,
+  KornixManualPrecipitationResponseDto,
   KornixMethodsResponseDto,
   KornixReadinessDto
 } from '../src/kornix/kornixTypes.js';
@@ -163,10 +166,39 @@ function currentIrrigationLayerFixture(): KornixCurrentIrrigationLayerDto {
   };
 }
 
+function currentPrecipitationLayerFixture(): KornixCurrentPrecipitationLayerDto {
+  return {
+    organizationCode: 'SP',
+    seasonYear: 2026,
+    managedScope: {
+      dateFrom: '2026-04-01',
+      dateTo: '2026-07-05',
+      fieldSeasonIds: ['field-season-1'],
+      scopeVersion: 'precip-scope-1',
+      scopeHash: 'precip-hash-1'
+    },
+    precipitationLayer: [],
+    projectionHash: 'precip-projection-1',
+    generatedAt: '2026-07-05T10:00:00+03:00'
+  };
+}
+
 function approvalResponseFixture(): KornixApprovalSubmitResponseDto {
   return {
     approvalBatchId: 'approval-1',
     calculationRunId: 'calc-1',
+    approvalStatus: 'pending_calculation',
+    calculationStatus: 'queued',
+    reusedPreviousCalculation: false,
+    pollRequired: true,
+    warnings: []
+  };
+}
+
+function precipitationResponseFixture(): KornixManualPrecipitationResponseDto {
+  return {
+    precipitationBatchId: 'precipitation-1',
+    calculationRunId: 'calc-precipitation-1',
     approvalStatus: 'pending_calculation',
     calculationStatus: 'queued',
     reusedPreviousCalculation: false,
@@ -182,8 +214,9 @@ function createContext(overrides: Partial<KornixClient> = {}): BotContext {
     getFieldSeasonCatalog: async () => catalogFixture(),
     getMethods: async () => methodsFixture(),
     getCurrentIrrigationLayer: async () => currentIrrigationLayerFixture(),
+    getCurrentPrecipitationLayer: async () => currentPrecipitationLayerFixture(),
     submitWaterRegimeApproval: async () => approvalResponseFixture(),
-    submitManualPrecipitation: async () => ({ status: 'accepted' }),
+    submitManualPrecipitation: async () => precipitationResponseFixture(),
     ...overrides
   } as unknown as KornixClient;
 
@@ -331,11 +364,64 @@ describe('dispatchCommand', () => {
   });
 
   it('supports manual precipitation input', async () => {
-    const context = createContext();
+    const submissions: KornixManualPrecipitationRequestDto[] = [];
+    const context = createContext({
+      getCurrentPrecipitationLayer: async () => ({
+        ...currentPrecipitationLayerFixture(),
+        precipitationLayer: [
+          {
+            fieldSeasonId: 'field-season-1',
+            day: '2026-07-01',
+            rainGaugeMm: null,
+            meteoMm: 3,
+            manualMm: 7,
+            acceptedMm: 7,
+            acceptedSource: 'manual'
+          }
+        ]
+      }),
+      submitManualPrecipitation: async (payload) => {
+        submissions.push(payload);
+        return precipitationResponseFixture();
+      }
+    });
 
     await dispatchCommand(parseCommand('/fields'), context);
     await dispatchCommand(parseCommand('/field 1'), context);
-    assert.match((await dispatchCommand(parseCommand('/rain 2026-07-10 12.5'), context)).text, /Осадки: 12.5 мм/);
+    assert.match((await dispatchCommand(parseCommand('/rain 2026-07-05 12.5'), context)).text, /Осадки: 12.5 мм/);
     assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Осадки отправлены/);
+
+    assert.equal(submissions.length, 1);
+    const submitted = submissions[0];
+    assert.ok(submitted);
+    assert.equal(submitted.baseCalculationRunId, 'run-1');
+    assert.deepEqual(submitted.managedScope, {
+      dateFrom: '2026-04-01',
+      dateTo: '2026-07-05',
+      fieldSeasonIds: ['field-season-1'],
+      scopeVersion: 'precip-scope-1'
+    });
+    assert.deepEqual(
+      submitted.precipitationLayer.map((cell) => `${cell.day}:${cell.precipitationMm}`).sort(),
+      ['2026-07-01:7', '2026-07-05:12.5']
+    );
+  });
+
+  it('rejects manual precipitation dates outside precipitation managed scope', async () => {
+    let submitCalled = false;
+    const context = createContext({
+      submitManualPrecipitation: async () => {
+        submitCalled = true;
+        return precipitationResponseFixture();
+      }
+    });
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1'), context);
+    await dispatchCommand(parseCommand('/rain 2026-07-10 12.5'), context);
+    const response = await dispatchCommand(parseCommand('/confirm'), context);
+
+    assert.match(response.text, /дата должна быть в окне managedScope 2026-04-01\.\.2026-07-05/);
+    assert.equal(submitCalled, false);
   });
 });
