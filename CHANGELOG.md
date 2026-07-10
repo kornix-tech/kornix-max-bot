@@ -2,6 +2,7 @@
 
 ## 2026-07-10
 
+- Production Docker network для MAX-бота переключён на фактическую сеть `kornix_prod_meteo_net`, чтобы Caddy мог резолвить `kornix-max-bot` и `/max/webhook` не возвращал 502.
 - Исправлена отправка поливов из MAX-бота: approval payload теперь включает только ячейки внутри текущего `managedScope`, чтобы backend не отклонял historical irrigation layer с ошибкой `irrigationDate is outside managedScope`.
 - Добавлена локальная проверка даты и поля перед отправкой полива, чтобы пользователь получал понятное сообщение без backend 422.
 - Добавлен ignore для timestamp backup-файлов, появляющихся при VDS deploy-правках.

@@ -38,7 +38,7 @@ nano .env.production
 Бот должен быть в той же Docker network, что и Caddy reverse proxy из backend stack. Для текущего compose проекта ожидаемая сеть:
 
 ```bash
-meteo_stack_meteo_net
+kornix_prod_meteo_net
 ```
 
 Если на VDS сеть называется иначе, задать переменную перед запуском:
@@ -55,7 +55,7 @@ docker network ls | grep meteo
 
 ## 5. Проверка Docker Network
 
-`reverse-proxy` из `meteo_stack` и контейнер `kornix-max-bot` должны быть подключены к одной Docker network. Тогда Caddy сможет обратиться к bot service по имени:
+`reverse-proxy` из production stack и контейнер `kornix-max-bot` должны быть подключены к одной Docker network. Тогда Caddy сможет обратиться к bot service по имени:
 
 ```text
 kornix-max-bot:3000
@@ -70,7 +70,7 @@ docker network ls
 Посмотреть сети Caddy reverse proxy:
 
 ```bash
-docker inspect meteo_stack-reverse-proxy-1 --format '{{json .NetworkSettings.Networks}}'
+docker inspect kornix_prod-reverse-proxy-1 --format '{{json .NetworkSettings.Networks}}'
 ```
 
 После запуска бота посмотреть его сети:
@@ -79,7 +79,7 @@ docker inspect meteo_stack-reverse-proxy-1 --format '{{json .NetworkSettings.Net
 docker inspect kornix-max-bot --format '{{json .NetworkSettings.Networks}}'
 ```
 
-Если имя сети у `reverse-proxy` отличается от `meteo_stack_meteo_net`, перед запуском бота указать его явно:
+Если имя сети у `reverse-proxy` отличается от `kornix_prod_meteo_net`, перед запуском бота указать его явно:
 
 ```bash
 export KORNIX_DOCKER_NETWORK=<network_from_reverse_proxy_inspect>

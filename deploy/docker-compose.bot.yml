@@ -28,4 +28,4 @@ services:
 networks:
   kornix_meteo_net:
     external: true
-    name: ${KORNIX_DOCKER_NETWORK:-meteo_stack_meteo_net}
+    name: ${KORNIX_DOCKER_NETWORK:-kornix_prod_meteo_net}
