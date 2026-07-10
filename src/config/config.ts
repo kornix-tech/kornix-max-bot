@@ -34,20 +34,35 @@ function readLogLevel(env: NodeJS.ProcessEnv): LogLevel {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  const nodeEnv = readString(env, 'NODE_ENV', 'development');
+  const kornixServiceToken = readString(env, 'KORNIX_SERVICE_TOKEN');
+  const maxBotToken = readString(env, 'MAX_BOT_TOKEN');
+  const maxWebhookSecret = readString(env, 'MAX_WEBHOOK_SECRET');
+  if (nodeEnv === 'production') {
+    for (const [name, value] of [
+      ['KORNIX_SERVICE_TOKEN', kornixServiceToken],
+      ['MAX_BOT_TOKEN', maxBotToken],
+      ['MAX_WEBHOOK_SECRET', maxWebhookSecret]
+    ] as const) {
+      if (value.length < 32) {
+        throw new Error(`${name} must be configured with at least 32 characters in production.`);
+      }
+    }
+  }
   return {
-    nodeEnv: readString(env, 'NODE_ENV', 'development'),
+    nodeEnv,
     port: readPort(env),
     publicBaseUrl: readString(env, 'PUBLIC_BASE_URL', 'https://poliv360.ru'),
     kornixApiBaseUrl: readString(env, 'KORNIX_API_BASE_URL', 'https://poliv360.ru'),
     kornixApiPrefix: readString(env, 'KORNIX_API_PREFIX', '/api/v2/kornix'),
-    kornixServiceToken: readString(env, 'KORNIX_SERVICE_TOKEN'),
+    kornixServiceToken,
     kornixInternalServiceIdentity: readString(
       env,
       'KORNIX_INTERNAL_SERVICE_IDENTITY',
       DEFAULT_KORNIX_INTERNAL_SERVICE_IDENTITY
     ),
-    maxBotToken: readString(env, 'MAX_BOT_TOKEN'),
-    maxWebhookSecret: readString(env, 'MAX_WEBHOOK_SECRET'),
+    maxBotToken,
+    maxWebhookSecret,
     maxApiBaseUrl: readString(env, 'MAX_API_BASE_URL', 'https://platform-api2.max.ru'),
     maxRequestTimeoutMs: readPositiveInteger(env, 'MAX_REQUEST_TIMEOUT_MS', DEFAULT_MAX_REQUEST_TIMEOUT_MS),
     defaultSeasonYear: readPositiveInteger(env, 'DEFAULT_SEASON_YEAR', DEFAULT_SEASON_YEAR),

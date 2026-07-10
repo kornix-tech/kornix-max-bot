@@ -6,6 +6,8 @@ import { parseCommand } from '../src/bot/commandParser.js';
 import type { BotContext } from '../src/bot/botContext.js';
 import type {
   FieldSeasonCatalogDto,
+  KornixApprovalRequestDto,
+  KornixApprovalSubmitResponseDto,
   KornixCurrentContextDto,
   KornixCurrentIrrigationLayerDto,
   KornixMethodsResponseDto,
@@ -161,23 +163,28 @@ function currentIrrigationLayerFixture(): KornixCurrentIrrigationLayerDto {
   };
 }
 
-function createContext(): BotContext {
+function approvalResponseFixture(): KornixApprovalSubmitResponseDto {
+  return {
+    approvalBatchId: 'approval-1',
+    calculationRunId: 'calc-1',
+    approvalStatus: 'pending_calculation',
+    calculationStatus: 'queued',
+    reusedPreviousCalculation: false,
+    pollRequired: true,
+    warnings: []
+  };
+}
+
+function createContext(overrides: Partial<KornixClient> = {}): BotContext {
   const kornixClient = {
     getReadinessCurrent: async () => readinessFixture(),
     getCurrentContext: async () => contextFixture(),
     getFieldSeasonCatalog: async () => catalogFixture(),
     getMethods: async () => methodsFixture(),
     getCurrentIrrigationLayer: async () => currentIrrigationLayerFixture(),
-    submitWaterRegimeApproval: async () => ({
-      approvalBatchId: 'approval-1',
-      calculationRunId: 'calc-1',
-      approvalStatus: 'pending_calculation',
-      calculationStatus: 'queued',
-      reusedPreviousCalculation: false,
-      pollRequired: true,
-      warnings: []
-    }),
-    submitManualPrecipitation: async () => ({ status: 'accepted' })
+    submitWaterRegimeApproval: async () => approvalResponseFixture(),
+    submitManualPrecipitation: async () => ({ status: 'accepted' }),
+    ...overrides
   } as unknown as KornixClient;
 
   return {
@@ -259,6 +266,68 @@ describe('dispatchCommand', () => {
       }
     ]);
     assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
+  });
+
+  it('submits only irrigation cells inside managed scope', async () => {
+    const submissions: KornixApprovalRequestDto[] = [];
+    const context = createContext({
+      getCurrentIrrigationLayer: async () => ({
+        ...currentIrrigationLayerFixture(),
+        irrigationLayer: [
+          {
+            fieldSeasonId: 'field-season-1',
+            irrigationDate: '2026-06-10',
+            irrigationMm: 10,
+            sourceLedgerEventId: 'ledger-outside',
+            approvedAt: '2026-06-26T10:00:00+03:00',
+            zone: 'historical_actual'
+          },
+          {
+            fieldSeasonId: 'field-season-1',
+            irrigationDate: '2026-07-01',
+            irrigationMm: 12,
+            sourceLedgerEventId: 'ledger-inside',
+            approvedAt: '2026-07-01T10:00:00+03:00',
+            zone: 'forecast_planned'
+          }
+        ]
+      }),
+      submitWaterRegimeApproval: async (payload) => {
+        submissions.push(payload);
+        return approvalResponseFixture();
+      }
+    });
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1'), context);
+    await dispatchCommand(parseCommand('/water 2026-07-10 25'), context);
+    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
+
+    assert.equal(submissions.length, 1);
+    const submitted = submissions[0];
+    assert.ok(submitted);
+    assert.deepEqual(
+      submitted.irrigationLayer.map((cell) => cell.irrigationDate).sort(),
+      ['2026-07-01', '2026-07-10']
+    );
+  });
+
+  it('rejects irrigation dates outside managed scope before submitting', async () => {
+    let submitCalled = false;
+    const context = createContext({
+      submitWaterRegimeApproval: async () => {
+        submitCalled = true;
+        return approvalResponseFixture();
+      }
+    });
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1'), context);
+    await dispatchCommand(parseCommand('/water 2026-06-01 25'), context);
+    const response = await dispatchCommand(parseCommand('/confirm'), context);
+
+    assert.match(response.text, /дата должна быть в окне managedScope 2026-06-14\.\.2026-07-12/);
+    assert.equal(submitCalled, false);
   });
 
   it('supports manual precipitation input', async () => {

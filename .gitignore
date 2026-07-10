@@ -9,4 +9,5 @@ coverage/
 .env.*
 !.env.example
 !.env.production.example
+*.bak.*
 npm-debug.log*

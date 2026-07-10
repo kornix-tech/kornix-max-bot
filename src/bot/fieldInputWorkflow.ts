@@ -298,10 +298,24 @@ async function submitWater(context: BotContext, pending: PendingFieldInput): Pro
     return `Полив не отправлен: submitAllowed=no${currentContext.submitBlockedReason ? ` (${currentContext.submitBlockedReason})` : ''}.`;
   }
 
+  const managedScope: KornixApprovalManagedScopeDto = {
+    dateFrom: currentContext.managedScope.dateFrom,
+    dateTo: currentContext.managedScope.dateTo,
+    fieldSeasonIds: currentContext.managedScope.fieldSeasonIds,
+    scopeVersion: currentContext.managedScope.scopeVersion
+  };
+
+  if (!isFieldInManagedScope(pending.field.fieldSeasonId, managedScope)) {
+    return 'Полив не отправлен: выбранное поле сейчас вне managedScope KORNIX.';
+  }
+  if (!isDateInManagedScope(pending.date, managedScope)) {
+    return `Полив не отправлен: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
+  }
+
   const currentLayer = await context.kornixClient.getCurrentIrrigationLayer(context.seasonYear);
   const layer = new Map<string, KornixApprovalIrrigationCellDto>();
   for (const cell of currentLayer.irrigationLayer) {
-    if (cell.irrigationMm > 0) {
+    if (cell.irrigationMm > 0 && isCellInManagedScope(cell, managedScope)) {
       layer.set(cellKey(cell.fieldSeasonId, cell.irrigationDate), {
         fieldSeasonId: cell.fieldSeasonId,
         irrigationDate: cell.irrigationDate,
@@ -317,13 +331,6 @@ async function submitWater(context: BotContext, pending: PendingFieldInput): Pro
     irrigationDate: pending.date,
     irrigationMm: pending.mm
   });
-
-  const managedScope: KornixApprovalManagedScopeDto = {
-    dateFrom: currentContext.managedScope.dateFrom,
-    dateTo: currentContext.managedScope.dateTo,
-    fieldSeasonIds: currentContext.managedScope.fieldSeasonIds,
-    scopeVersion: currentContext.managedScope.scopeVersion
-  };
 
   const response = await context.kornixClient.submitWaterRegimeApproval({
     seasonYear: context.seasonYear,
@@ -409,6 +416,21 @@ function fieldDateKey(pending: PendingFieldInput): string {
 
 function cellKey(fieldSeasonId: string, date: string): string {
   return `${fieldSeasonId}:${date}`;
+}
+
+function isCellInManagedScope(
+  cell: { fieldSeasonId: string; irrigationDate: string },
+  managedScope: KornixApprovalManagedScopeDto
+): boolean {
+  return isFieldInManagedScope(cell.fieldSeasonId, managedScope) && isDateInManagedScope(cell.irrigationDate, managedScope);
+}
+
+function isFieldInManagedScope(fieldSeasonId: string, managedScope: KornixApprovalManagedScopeDto): boolean {
+  return managedScope.fieldSeasonIds.includes(fieldSeasonId);
+}
+
+function isDateInManagedScope(date: string, managedScope: KornixApprovalManagedScopeDto): boolean {
+  return date >= managedScope.dateFrom && date <= managedScope.dateTo;
 }
 
 function normalize(value: string | null | undefined): string {

@@ -8,7 +8,7 @@ export function verifyMaxWebhookSecret(
 ): boolean {
   const secret = expectedSecret.trim();
   if (!secret) {
-    return true;
+    return false;
   }
 
   const received = headerValue(headers, MAX_WEBHOOK_SECRET_HEADER);

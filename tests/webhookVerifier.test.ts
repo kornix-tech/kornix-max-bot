@@ -12,8 +12,8 @@ describe('verifyMaxWebhookSecret', () => {
     assert.equal(verifyMaxWebhookSecret({}, 'secret'), false);
   });
 
-  it('is disabled when configured secret is empty', () => {
-    assert.equal(verifyMaxWebhookSecret({}, ''), true);
-    assert.equal(verifyMaxWebhookSecret({}, '   '), true);
+  it('fails closed when configured secret is empty', () => {
+    assert.equal(verifyMaxWebhookSecret({}, ''), false);
+    assert.equal(verifyMaxWebhookSecret({}, '   '), false);
   });
 });
