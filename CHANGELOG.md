@@ -2,7 +2,7 @@
 
 ## 2026-07-10
 
-- Исправлена отправка ручных осадков из MAX-бота: payload приведён к live backend contract `precipitation-layer/manual` с `baseCalculationRunId`, precipitation `managedScope` и `precipitationLayer`.
+- Исправлена отправка ручных осадков из MAX-бота: payload приведён к live backend contract `precipitation-layer/manual` с `baseCalculationRunId`, precipitation `managedScope` и sparse `clientDiff`.
 - Добавлена локальная проверка даты осадков по precipitation managed scope, чтобы не отправлять будущие даты и не получать backend 422.
 - Production Docker network для MAX-бота переключён на фактическую сеть `kornix_prod_meteo_net`, чтобы Caddy мог резолвить `kornix-max-bot` и `/max/webhook` не возвращал 502.
 - Исправлена отправка поливов из MAX-бота: approval payload теперь включает только ячейки внутри текущего `managedScope`, чтобы backend не отклонял historical irrigation layer с ошибкой `irrigationDate is outside managedScope`.

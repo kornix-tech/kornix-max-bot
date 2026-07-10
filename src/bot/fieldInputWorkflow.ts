@@ -4,8 +4,7 @@ import { commandButtonKeyboard } from './keyboards.js';
 import type {
   FieldSeasonCatalogFieldDto,
   KornixApprovalIrrigationCellDto,
-  KornixApprovalManagedScopeDto,
-  KornixManualPrecipitationCellDto
+  KornixApprovalManagedScopeDto
 } from '../kornix/kornixTypes.js';
 import { ApiError } from '../kornix/kornixClient.js';
 import type { BotResponse, ParsedCommand } from '../types/bot.js';
@@ -366,12 +365,11 @@ async function submitRain(context: BotContext, pending: PendingFieldInput): Prom
     return `Осадки не отправлены: submitAllowed=no${currentContext.submitBlockedReason ? ` (${currentContext.submitBlockedReason})` : ''}.`;
   }
 
-  const currentLayer = await context.kornixClient.getCurrentPrecipitationLayer(context.seasonYear);
   const managedScope: KornixApprovalManagedScopeDto = {
-    dateFrom: currentLayer.managedScope.dateFrom,
-    dateTo: currentLayer.managedScope.dateTo,
-    fieldSeasonIds: currentLayer.managedScope.fieldSeasonIds,
-    scopeVersion: currentLayer.managedScope.scopeVersion
+    dateFrom: `${currentContext.seasonYear}-04-01`,
+    dateTo: currentContext.serverDate,
+    fieldSeasonIds: currentContext.managedScope.fieldSeasonIds,
+    scopeVersion: currentContext.managedScope.scopeVersion
   };
 
   if (!isFieldInManagedScope(pending.field.fieldSeasonId, managedScope)) {
@@ -381,34 +379,15 @@ async function submitRain(context: BotContext, pending: PendingFieldInput): Prom
     return `Осадки не отправлены: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
   }
 
-  const layer = new Map<string, KornixManualPrecipitationCellDto>();
-  for (const cell of currentLayer.precipitationLayer) {
-    if (cell.manualMm !== null && Number.isFinite(cell.manualMm) && isPrecipitationCellInManagedScope(cell, managedScope)) {
-      layer.set(cellKey(cell.fieldSeasonId, cell.day), {
-        fieldSeasonId: cell.fieldSeasonId,
-        day: cell.day,
-        precipitationMm: cell.manualMm
-      });
-    }
-  }
-
-  const key = fieldDateKey(pending);
-  const previous = layer.get(key);
-  layer.set(key, {
-    fieldSeasonId: pending.field.fieldSeasonId,
-    day: pending.date,
-    precipitationMm: pending.mm
-  });
-
   const response = await context.kornixClient.submitManualPrecipitation({
     seasonYear: context.seasonYear,
     baseCalculationRunId: currentContext.currentAppliedCalculationRunId,
     approvalClientGeneratedAt: new Date().toISOString(),
     managedScope,
-    precipitationLayer: [...layer.values()],
+    precipitationLayer: [],
     clientDiff: {
-      added: previous ? [] : [precipitationDiffEntry(pending)],
-      updated: previous ? [precipitationDiffEntry(pending)] : [],
+      added: [precipitationDiffEntry(pending)],
+      updated: [],
       deleted: []
     }
   });
@@ -479,13 +458,6 @@ function isCellInManagedScope(
   managedScope: KornixApprovalManagedScopeDto
 ): boolean {
   return isFieldInManagedScope(cell.fieldSeasonId, managedScope) && isDateInManagedScope(cell.irrigationDate, managedScope);
-}
-
-function isPrecipitationCellInManagedScope(
-  cell: { fieldSeasonId: string; day: string },
-  managedScope: KornixApprovalManagedScopeDto
-): boolean {
-  return isFieldInManagedScope(cell.fieldSeasonId, managedScope) && isDateInManagedScope(cell.day, managedScope);
 }
 
 function isFieldInManagedScope(fieldSeasonId: string, managedScope: KornixApprovalManagedScopeDto): boolean {

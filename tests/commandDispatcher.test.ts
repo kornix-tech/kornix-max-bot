@@ -10,7 +10,6 @@ import type {
   KornixApprovalSubmitResponseDto,
   KornixCurrentContextDto,
   KornixCurrentIrrigationLayerDto,
-  KornixCurrentPrecipitationLayerDto,
   KornixManualPrecipitationRequestDto,
   KornixManualPrecipitationResponseDto,
   KornixMethodsResponseDto,
@@ -166,23 +165,6 @@ function currentIrrigationLayerFixture(): KornixCurrentIrrigationLayerDto {
   };
 }
 
-function currentPrecipitationLayerFixture(): KornixCurrentPrecipitationLayerDto {
-  return {
-    organizationCode: 'SP',
-    seasonYear: 2026,
-    managedScope: {
-      dateFrom: '2026-04-01',
-      dateTo: '2026-07-05',
-      fieldSeasonIds: ['field-season-1'],
-      scopeVersion: 'precip-scope-1',
-      scopeHash: 'precip-hash-1'
-    },
-    precipitationLayer: [],
-    projectionHash: 'precip-projection-1',
-    generatedAt: '2026-07-05T10:00:00+03:00'
-  };
-}
-
 function approvalResponseFixture(): KornixApprovalSubmitResponseDto {
   return {
     approvalBatchId: 'approval-1',
@@ -214,7 +196,6 @@ function createContext(overrides: Partial<KornixClient> = {}): BotContext {
     getFieldSeasonCatalog: async () => catalogFixture(),
     getMethods: async () => methodsFixture(),
     getCurrentIrrigationLayer: async () => currentIrrigationLayerFixture(),
-    getCurrentPrecipitationLayer: async () => currentPrecipitationLayerFixture(),
     submitWaterRegimeApproval: async () => approvalResponseFixture(),
     submitManualPrecipitation: async () => precipitationResponseFixture(),
     ...overrides
@@ -366,20 +347,6 @@ describe('dispatchCommand', () => {
   it('supports manual precipitation input', async () => {
     const submissions: KornixManualPrecipitationRequestDto[] = [];
     const context = createContext({
-      getCurrentPrecipitationLayer: async () => ({
-        ...currentPrecipitationLayerFixture(),
-        precipitationLayer: [
-          {
-            fieldSeasonId: 'field-season-1',
-            day: '2026-07-01',
-            rainGaugeMm: null,
-            meteoMm: 3,
-            manualMm: 7,
-            acceptedMm: 7,
-            acceptedSource: 'manual'
-          }
-        ]
-      }),
       submitManualPrecipitation: async (payload) => {
         submissions.push(payload);
         return precipitationResponseFixture();
@@ -399,12 +366,17 @@ describe('dispatchCommand', () => {
       dateFrom: '2026-04-01',
       dateTo: '2026-07-05',
       fieldSeasonIds: ['field-season-1'],
-      scopeVersion: 'precip-scope-1'
+      scopeVersion: 'scope-1'
     });
-    assert.deepEqual(
-      submitted.precipitationLayer.map((cell) => `${cell.day}:${cell.precipitationMm}`).sort(),
-      ['2026-07-01:7', '2026-07-05:12.5']
-    );
+    assert.deepEqual(submitted.precipitationLayer, []);
+    assert.deepEqual(submitted.clientDiff?.added, [
+      {
+        fieldSeasonId: 'field-season-1',
+        day: '2026-07-05',
+        precipitationMm: 12.5,
+        source: 'max_bot'
+      }
+    ]);
   });
 
   it('rejects manual precipitation dates outside precipitation managed scope', async () => {

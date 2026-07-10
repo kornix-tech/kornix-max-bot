@@ -159,25 +159,6 @@ export type KornixCurrentIrrigationLayerDto = {
   generatedAt: string;
 };
 
-export type KornixCurrentPrecipitationLayerCellDto = {
-  fieldSeasonId: string;
-  day: string;
-  rainGaugeMm: number | null;
-  meteoMm: number | null;
-  manualMm: number | null;
-  acceptedMm: number | null;
-  acceptedSource: 'manual' | 'rain_gauge' | 'meteo' | 'none';
-};
-
-export type KornixCurrentPrecipitationLayerDto = {
-  organizationCode: string;
-  seasonYear: number;
-  managedScope: KornixManagedScopeDto;
-  precipitationLayer: KornixCurrentPrecipitationLayerCellDto[];
-  projectionHash: string;
-  generatedAt: string;
-};
-
 export type KornixApprovalIrrigationCellDto = {
   fieldSeasonId: string;
   irrigationDate: string;

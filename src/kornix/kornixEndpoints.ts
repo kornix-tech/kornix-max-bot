@@ -46,10 +46,6 @@ export const kornixEndpoints = {
     return pathWithQuery(`${KORNIX_API_PREFIX}/irrigation-layer/current`, { seasonYear });
   },
 
-  currentPrecipitationLayer(seasonYear: number): string {
-    return pathWithQuery(`${KORNIX_API_PREFIX}/precipitation-layer/current`, { seasonYear });
-  },
-
   fieldSeasonCatalog(seasonYear: number): string {
     return pathWithQuery(`${KORNIX_API_PREFIX}/field-seasons/catalog`, { seasonYear });
   },
