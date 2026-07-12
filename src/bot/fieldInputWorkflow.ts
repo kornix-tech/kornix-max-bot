@@ -50,6 +50,7 @@ export async function selectFieldHandler(context: BotContext, command: ParsedCom
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.selectedField = field;
   state.awaitingInput = null;
+  state.inputDate = null;
   state.pendingInput = null;
 
   return {
@@ -87,24 +88,23 @@ export async function beginFieldInputHandler(
   const inline = command.args.join(' ').trim();
   if (inline) {
     const parsed = parseFieldInput(inline);
-    if (!parsed) {
-      return { text: inputExample(kind) };
+    if (parsed) {
+      return setPendingInput(context, kind, state.selectedField, parsed);
     }
-    return setPendingInput(context, kind, state.selectedField, parsed);
+    const date = command.args.length === 1 ? parseDateToken(inline) : null;
+    if (date) {
+      state.awaitingInput = kind;
+      state.inputDate = date;
+      state.pendingInput = null;
+      return { text: 'Введите количество мм' };
+    }
+    return dateSelectionResponse(kind, state.selectedField);
   }
 
   state.awaitingInput = kind;
+  state.inputDate = null;
   state.pendingInput = null;
-  return {
-    text: [
-      `${kindLabel(kind)} для поля ${fieldNumber(state.selectedField)}`,
-      'Введите дату и количество мм одним сообщением:',
-      'сегодня 25',
-      'завтра 18',
-      '2026-07-10 12.5'
-    ].join('\n'),
-    attachments: commandButtonKeyboard([{ text: 'Отменить', command: '/cancel' }], 1)
-  };
+  return dateSelectionResponse(kind, state.selectedField);
 }
 
 export async function workflowTextInputHandler(context: BotContext, command: ParsedCommand): Promise<BotResponse | null> {
@@ -112,11 +112,14 @@ export async function workflowTextInputHandler(context: BotContext, command: Par
   const raw = command.rawText.trim();
 
   if (state.awaitingInput && state.selectedField) {
-    const parsed = parseFieldInput(raw);
-    if (!parsed) {
-      return { text: inputExample(state.awaitingInput) };
+    if (!state.inputDate) {
+      return dateSelectionResponse(state.awaitingInput, state.selectedField);
     }
-    return setPendingInput(context, state.awaitingInput, state.selectedField, parsed);
+    const mm = parseMm(raw);
+    if (mm === null || mm <= 0) {
+      return { text: 'Введите количество мм одним числом, например: 25 или 12.5' };
+    }
+    return setPendingInput(context, state.awaitingInput, state.selectedField, { date: state.inputDate, mm });
   }
 
   if (/^\d+(?:\.\d+)?$/.test(raw)) {
@@ -140,6 +143,7 @@ export async function confirmHandler(context: BotContext): Promise<BotResponse> 
     const response = pending.kind === 'water' ? await submitWater(context, pending) : await submitRain(context, pending);
     state.pendingInput = null;
     state.awaitingInput = null;
+    state.inputDate = null;
     return {
       text: response,
       attachments: chooseFieldKeyboard()
@@ -152,6 +156,7 @@ export async function confirmHandler(context: BotContext): Promise<BotResponse> 
 export async function cancelHandler(context: BotContext): Promise<BotResponse> {
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.awaitingInput = null;
+  state.inputDate = null;
   state.pendingInput = null;
   return {
     text: 'Черновик отменён. Выбранное поле сохранено.',
@@ -174,6 +179,7 @@ function setPendingInput(
 ): BotResponse {
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.awaitingInput = null;
+  state.inputDate = null;
   state.pendingInput = {
     kind,
     field,
@@ -278,7 +284,7 @@ function parseDateToken(token: string): string | null {
 }
 
 function parseMm(token: string): number | null {
-  const normalized = token.replace(',', '.').replace(/мм$/i, '');
+  const normalized = token.replace(',', '.');
   if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
     return null;
   }
@@ -421,10 +427,21 @@ function chooseFieldKeyboard() {
   return commandButtonKeyboard([{ text: 'Выбрать поле', command: '/fields' }], 1);
 }
 
-function inputExample(kind: InputKind): string {
-  return [`Не понял дату и мм для "${kindLabel(kind)}".`, 'Напишите, например:', 'сегодня 25', 'завтра 18', '2026-07-10 12.5'].join(
-    '\n'
-  );
+function dateSelectionResponse(kind: InputKind, field: FieldSeasonCatalogFieldDto): BotResponse {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const days = new Date(year, month + 1, 0).getDate();
+  const buttons = Array.from({ length: days }, (_, index) => {
+    const day = index + 1;
+    const date = formatDate(new Date(year, month, day));
+    return { text: String(day), command: `/${kind} ${date}` };
+  });
+  buttons.push({ text: 'Отменить', command: '/cancel' });
+  return {
+    text: [`${kindLabel(kind)} для поля ${fieldNumber(field)}`, 'Выберите дату'].join('\n'),
+    attachments: commandButtonKeyboard(buttons, 7)
+  };
 }
 
 function diffEntry(pending: PendingFieldInput) {

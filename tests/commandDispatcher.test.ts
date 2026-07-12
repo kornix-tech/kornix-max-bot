@@ -282,6 +282,34 @@ describe('dispatchCommand', () => {
     assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
   });
 
+  it('shows every day of the current month and accepts millimeters after a date click', async () => {
+    const context = createContext();
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1'), context);
+
+    const datesResponse = await dispatchCommand(parseCommand('/water'), context);
+    assert.match(datesResponse.text, /Выберите дату/);
+    const keyboard = datesResponse.attachments as Array<{
+      payload: { buttons: Array<Array<{ text: string; payload: string }>> };
+    }>;
+    const buttons = keyboard[0]?.payload.buttons.flat() ?? [];
+    const now = new Date();
+    const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    assert.equal(buttons.length, days + 1);
+    assert.deepEqual(buttons[0], {
+      type: 'callback',
+      text: '1',
+      payload: `/water ${now.getFullYear()}-${month}-01`
+    });
+    assert.equal(buttons.at(-2)?.text, String(days));
+    assert.equal(buttons.at(-1)?.payload, '/cancel');
+
+    assert.equal((await dispatchCommand(parseCommand(buttons[0]?.payload ?? ''), context)).text, 'Введите количество мм');
+    assert.match((await dispatchCommand(parseCommand('12 мм'), context)).text, /одним числом/);
+    assert.match((await dispatchCommand(parseCommand('12.5'), context)).text, /Полив: 12.5 мм/);
+  });
+
   it('submits only irrigation cells inside managed scope', async () => {
     const submissions: KornixApprovalRequestDto[] = [];
     const context = createContext({
