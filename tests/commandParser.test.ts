@@ -15,6 +15,8 @@ describe('parseCommand', () => {
     assert.equal(parseCommand('/field 3').type, 'field');
     assert.equal(parseCommand('/water today 25').type, 'water');
     assert.equal(parseCommand('/rain 2026-07-10 12').type, 'rain');
+    assert.equal(parseCommand('/field-status').type, 'fieldStatus');
+    assert.equal(parseCommand('/add-more').type, 'addMore');
     assert.equal(parseCommand('/confirm').type, 'confirm');
     assert.equal(parseCommand('/cancel').type, 'cancel');
   });

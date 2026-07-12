@@ -47,4 +47,8 @@ export const kornixEndpoints = {
     return pathWithQuery(`${KORNIX_API_PREFIX}/field-seasons/catalog`, { seasonYear });
   },
 
+  fieldSeasonMap(calculationRunId: string, methodCode: string, day: string): string {
+    return pathWithQuery(`${KORNIX_API_PREFIX}/field-seasons/map`, { calculationRunId, methodCode, day });
+  },
+
 } as const;

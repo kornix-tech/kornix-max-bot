@@ -8,6 +8,8 @@ export type BotCommandName =
   | 'field'
   | 'water'
   | 'rain'
+  | 'fieldStatus'
+  | 'addMore'
   | 'confirm'
   | 'cancel'
   | 'methods'

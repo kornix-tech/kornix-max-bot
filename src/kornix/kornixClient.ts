@@ -4,6 +4,7 @@ import { kornixEndpoints } from './kornixEndpoints.js';
 import type {
   ApiErrorEnvelopeDto,
   FieldSeasonCatalogDto,
+  FieldSeasonMapDto,
   KornixApprovalRequestDto,
   KornixApprovalSubmitResponseDto,
   KornixClientOptions,
@@ -140,6 +141,10 @@ export class KornixClient {
 
   getFieldSeasonCatalog(seasonYear: number): Promise<FieldSeasonCatalogDto> {
     return this.request<FieldSeasonCatalogDto>(kornixEndpoints.fieldSeasonCatalog(seasonYear));
+  }
+
+  getFieldSeasonMap(calculationRunId: string, methodCode: string, day: string): Promise<FieldSeasonMapDto> {
+    return this.request<FieldSeasonMapDto>(kornixEndpoints.fieldSeasonMap(calculationRunId, methodCode, day));
   }
 
   submitWaterRegimeApproval(payload: KornixApprovalRequestDto): Promise<KornixApprovalSubmitResponseDto> {

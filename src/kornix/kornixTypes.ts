@@ -130,6 +130,28 @@ export type FieldSeasonCatalogDto = {
   fields: FieldSeasonCatalogFieldDto[];
 };
 
+export type FieldSeasonMapPropertiesDto = {
+  fieldSeasonId: string;
+  latestStatus: 'ok' | 'warning' | 'critical' | 'no_data' | 'not_calculated' | 'calculation_failed';
+  day: string;
+  soil_water_content_mm: number | null;
+  precipitation_effective_daily_mm: number | null;
+  irrigation_effective_daily_mm: number | null;
+  recommended_irrigation_date: string | null;
+  recommended_irrigation_mm: number | null;
+  dataQuality: {
+    calculationAvailable: boolean;
+    forcingComplete: boolean;
+    hasActiveMapping: boolean;
+    messages: string[];
+  };
+};
+
+export type FieldSeasonMapDto = {
+  day: string;
+  features: Array<{ properties: FieldSeasonMapPropertiesDto }>;
+};
+
 export type KornixCurrentIrrigationLayerCellDto = {
   fieldSeasonId: string;
   irrigationDate: string;

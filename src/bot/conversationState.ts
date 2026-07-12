@@ -15,7 +15,7 @@ export type ConversationState = {
   selectedField: FieldSeasonCatalogFieldDto | null;
   awaitingInput: InputKind | null;
   inputDate: string | null;
-  pendingInput: PendingFieldInput | null;
+  pendingInputs: PendingFieldInput[];
 };
 
 export class ConversationStateStore {
@@ -32,7 +32,7 @@ export class ConversationStateStore {
       selectedField: null,
       awaitingInput: null,
       inputDate: null,
-      pendingInput: null
+      pendingInputs: []
     };
     this.states.set(key, created);
     return created;

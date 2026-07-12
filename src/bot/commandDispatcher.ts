@@ -1,9 +1,11 @@
 import type { BotContext } from './botContext.js';
 import {
   beginFieldInputHandler,
+  addMoreHandler,
   cancelHandler,
   confirmHandler,
   listFieldsForSelection,
+  fieldStatusHandler,
   selectFieldHandler,
   workflowTextInputHandler
 } from './fieldInputWorkflow.js';
@@ -45,6 +47,8 @@ const HANDLERS = new Map<BotCommandName, CommandHandler>([
   ['field', selectFieldHandler],
   ['water', (context, command) => beginFieldInputHandler(context, command, 'water')],
   ['rain', (context, command) => beginFieldInputHandler(context, command, 'rain')],
+  ['fieldStatus', fieldStatusHandler],
+  ['addMore', addMoreHandler],
   ['confirm', confirmHandler],
   ['cancel', cancelHandler],
   ['methods', async (context) => ({ text: formatMethods(await context.kornixClient.getMethods()) })],

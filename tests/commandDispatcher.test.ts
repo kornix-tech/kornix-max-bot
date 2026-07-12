@@ -196,6 +196,29 @@ function createContext(overrides: Partial<KornixClient> = {}): BotContext {
     getFieldSeasonCatalog: async () => catalogFixture(),
     getMethods: async () => methodsFixture(),
     getCurrentIrrigationLayer: async () => currentIrrigationLayerFixture(),
+    getFieldSeasonMap: async () => ({
+      day: '2026-07-05',
+      features: [
+        {
+          properties: {
+            fieldSeasonId: 'field-season-1',
+            latestStatus: 'warning',
+            day: '2026-07-05',
+            soil_water_content_mm: 120,
+            precipitation_effective_daily_mm: 2.5,
+            irrigation_effective_daily_mm: 10,
+            recommended_irrigation_date: '2026-07-06',
+            recommended_irrigation_mm: 12,
+            dataQuality: {
+              calculationAvailable: true,
+              forcingComplete: true,
+              hasActiveMapping: true,
+              messages: []
+            }
+          }
+        }
+      ]
+    }),
     submitWaterRegimeApproval: async () => approvalResponseFixture(),
     submitManualPrecipitation: async () => precipitationResponseFixture(),
     ...overrides
@@ -263,23 +286,76 @@ describe('dispatchCommand', () => {
       {
         type: 'inline_keyboard',
         payload: {
-          buttons: [[{ type: 'callback', text: 'Полив', payload: '/water' }, { type: 'callback', text: 'Осадки', payload: '/rain' }]]
+          buttons: [
+            [{ type: 'callback', text: 'Полив', payload: '/water' }, { type: 'callback', text: 'Осадки', payload: '/rain' }],
+            [{ type: 'callback', text: 'Статус поля', payload: '/field-status' }]
+          ]
         }
       }
     ]);
     const pendingResponse = await dispatchCommand(parseCommand('/water 2026-07-10 25'), context);
-    assert.match(pendingResponse.text, /Подтвердите ввод/);
+    assert.match(pendingResponse.text, /Проверьте данные/);
     assert.match(pendingResponse.text, /Поле: 1\.1/);
     assert.doesNotMatch(pendingResponse.text, /\/confirm/);
     assert.deepEqual(pendingResponse.attachments, [
       {
         type: 'inline_keyboard',
         payload: {
-          buttons: [[{ type: 'callback', text: 'Подтвердить', payload: '/confirm' }, { type: 'callback', text: 'Отменить', payload: '/cancel' }]]
+          buttons: [[{ type: 'callback', text: 'Утверждаю', payload: '/confirm' }, { type: 'callback', text: 'Добавить еще', payload: '/add-more' }]]
         }
       }
     ]);
     assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
+  });
+
+  it('shows selected field status from the frontend map endpoint', async () => {
+    const context = createContext();
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1.1'), context);
+
+    const response = await dispatchCommand(parseCommand('/field-status'), context);
+
+    assert.match(response.text, /Статус поля 1\.1/);
+    assert.match(response.text, /Дата: 05\.07\.2026/);
+    assert.match(response.text, /Статус: требует внимания/);
+    assert.match(response.text, /Влага в почве: 120 мм/);
+    assert.match(response.text, /Рекомендуемый полив: 06\.07\.2026, 12 мм/);
+  });
+
+  it('queues several fields and submits them in one approval', async () => {
+    const submissions: KornixApprovalRequestDto[] = [];
+    const first = catalogFixture().fields[0];
+    assert.ok(first);
+    const second = { ...first, fieldId: 'field-2', fieldSeasonId: 'field-season-2', fieldKey: 'SP:2.1', fieldName: 'SP:2.1' };
+    const context = createContext({
+      getFieldSeasonCatalog: async () => ({ ...catalogFixture(), fields: [first, second] }),
+      getCurrentContext: async () => ({
+        ...contextFixture(),
+        managedScope: { ...contextFixture().managedScope, fieldSeasonIds: ['field-season-1', 'field-season-2'] }
+      }),
+      submitWaterRegimeApproval: async (payload) => {
+        submissions.push(payload);
+        return approvalResponseFixture();
+      }
+    });
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    await dispatchCommand(parseCommand('/field 1.1'), context);
+    await dispatchCommand(parseCommand('/water 2026-07-05 10'), context);
+    assert.match((await dispatchCommand(parseCommand('/add-more'), context)).text, /Добавлено записей: 1/);
+    await dispatchCommand(parseCommand('/field 2.1'), context);
+    const secondDraft = await dispatchCommand(parseCommand('/water 2026-07-05 20'), context);
+    assert.match(secondDraft.text, /Всего записей: 2/);
+
+    const response = await dispatchCommand(parseCommand('/confirm'), context);
+
+    assert.match(response.text, /Поле: 1\.1/);
+    assert.match(response.text, /Поле: 2\.1/);
+    assert.equal(submissions.length, 1);
+    assert.deepEqual(submissions[0]?.clientDiff?.added, [
+      { fieldSeasonId: 'field-season-1', date: '2026-07-05', mm: 10, source: 'max_bot' },
+      { fieldSeasonId: 'field-season-2', date: '2026-07-05', mm: 20, source: 'max_bot' }
+    ]);
   });
 
   it('shows every day of the current month and accepts millimeters after a date click', async () => {

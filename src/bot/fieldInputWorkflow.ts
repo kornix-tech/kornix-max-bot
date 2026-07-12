@@ -51,7 +51,6 @@ export async function selectFieldHandler(context: BotContext, command: ParsedCom
   state.selectedField = field;
   state.awaitingInput = null;
   state.inputDate = null;
-  state.pendingInput = null;
 
   return {
     text: [
@@ -63,7 +62,8 @@ export async function selectFieldHandler(context: BotContext, command: ParsedCom
     attachments: commandButtonKeyboard(
       [
         { text: 'Полив', command: '/water' },
-        { text: 'Осадки', command: '/rain' }
+        { text: 'Осадки', command: '/rain' },
+        { text: 'Статус поля', command: '/field-status' }
       ],
       2
     )
@@ -95,7 +95,6 @@ export async function beginFieldInputHandler(
     if (date) {
       state.awaitingInput = kind;
       state.inputDate = date;
-      state.pendingInput = null;
       return { text: 'Введите количество мм' };
     }
     return dateSelectionResponse(kind, state.selectedField);
@@ -103,7 +102,6 @@ export async function beginFieldInputHandler(
 
   state.awaitingInput = kind;
   state.inputDate = null;
-  state.pendingInput = null;
   return dateSelectionResponse(kind, state.selectedField);
 }
 
@@ -131,33 +129,82 @@ export async function workflowTextInputHandler(context: BotContext, command: Par
 
 export async function confirmHandler(context: BotContext): Promise<BotResponse> {
   const state = context.conversationStore.get(context.userId, context.chatId);
-  if (!state.pendingInput) {
+  if (!state.pendingInputs.length) {
     return {
       text: 'Нет черновика для подтверждения. Выберите поле.',
       attachments: chooseFieldKeyboard()
     };
   }
 
-  const pending = state.pendingInput;
-  try {
-    const response = pending.kind === 'water' ? await submitWater(context, pending) : await submitRain(context, pending);
-    state.pendingInput = null;
-    state.awaitingInput = null;
-    state.inputDate = null;
-    return {
-      text: response,
-      attachments: chooseFieldKeyboard()
-    };
-  } catch (error) {
-    return { text: formatSubmitError(error, pending.kind) };
+  const water = state.pendingInputs.filter((item) => item.kind === 'water');
+  const rain = state.pendingInputs.filter((item) => item.kind === 'rain');
+  const responses: string[] = [];
+  for (const [kind, inputs] of [['water', water], ['rain', rain]] as const) {
+    if (!inputs.length) {
+      continue;
+    }
+    try {
+      responses.push(kind === 'water' ? await submitWater(context, inputs) : await submitRain(context, inputs));
+      state.pendingInputs = state.pendingInputs.filter((item) => item.kind !== kind);
+    } catch (error) {
+      return { text: formatSubmitError(error, kind) };
+    }
   }
+  state.awaitingInput = null;
+  state.inputDate = null;
+  return {
+    text: responses.join('\n\n'),
+    attachments: chooseFieldKeyboard()
+  };
+}
+
+export async function addMoreHandler(context: BotContext): Promise<BotResponse> {
+  const state = context.conversationStore.get(context.userId, context.chatId);
+  if (!state.pendingInputs.length) {
+    return { text: 'Сначала добавьте полив или осадки.', attachments: chooseFieldKeyboard() };
+  }
+  const fields = await listFieldsForSelection(context);
+  return { ...fields, text: `Добавлено записей: ${state.pendingInputs.length}. Выберите следующее поле.` };
+}
+
+export async function fieldStatusHandler(context: BotContext): Promise<BotResponse> {
+  const state = context.conversationStore.get(context.userId, context.chatId);
+  if (!state.selectedField) {
+    return { text: 'Сначала выберите поле.', attachments: chooseFieldKeyboard() };
+  }
+  const current = await context.kornixClient.getCurrentContext(context.seasonYear);
+  if (!current.currentAppliedCalculationRunId) {
+    return { text: 'Статус поля недоступен: в KORNIX ещё нет применённого расчёта.' };
+  }
+  const map = await context.kornixClient.getFieldSeasonMap(
+    current.currentAppliedCalculationRunId,
+    current.defaultMethodCode,
+    current.serverDate
+  );
+  const feature = map.features.find((item) => item.properties.fieldSeasonId === state.selectedField?.fieldSeasonId);
+  if (!feature) {
+    return { text: 'Статус выбранного поля не найден в текущем расчёте KORNIX.' };
+  }
+  const value = feature.properties;
+  return {
+    text: [
+      `Статус поля ${fieldNumber(state.selectedField)}`,
+      `Дата: ${formatDisplayDate(value.day)}`,
+      `Статус: ${statusLabel(value.latestStatus)}`,
+      `Влага в почве: ${formatMetric(value.soil_water_content_mm, 'мм')}`,
+      `Эффективные осадки: ${formatMetric(value.precipitation_effective_daily_mm, 'мм')}`,
+      `Эффективный полив: ${formatMetric(value.irrigation_effective_daily_mm, 'мм')}`,
+      `Рекомендуемый полив: ${formatRecommendation(value.recommended_irrigation_date, value.recommended_irrigation_mm)}`,
+      `Качество данных: ${value.dataQuality.calculationAvailable && value.dataQuality.forcingComplete ? 'данные актуальны' : 'есть ограничения'}`
+    ].join('\n')
+  };
 }
 
 export async function cancelHandler(context: BotContext): Promise<BotResponse> {
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.awaitingInput = null;
   state.inputDate = null;
-  state.pendingInput = null;
+  state.pendingInputs = [];
   return {
     text: 'Черновик отменён. Выбранное поле сохранено.',
     attachments: commandButtonKeyboard(
@@ -180,24 +227,31 @@ function setPendingInput(
   const state = context.conversationStore.get(context.userId, context.chatId);
   state.awaitingInput = null;
   state.inputDate = null;
-  state.pendingInput = {
+  const pending: PendingFieldInput = {
     kind,
     field,
     date: parsed.date,
     mm: parsed.mm
   };
+  const existing = state.pendingInputs.findIndex((item) => fieldDateKey(item) === fieldDateKey(pending) && item.kind === kind);
+  if (existing === -1) {
+    state.pendingInputs.push(pending);
+  } else {
+    state.pendingInputs[existing] = pending;
+  }
 
   return {
     text: [
-      'Подтвердите ввод:',
+      'Проверьте данные:',
       `Поле: ${fieldNumber(field)}`,
       `${kindLabel(kind)}: ${formatMm(parsed.mm)} мм`,
-      `Дата: ${parsed.date}`
+      `Дата: ${formatDisplayDate(parsed.date)}`,
+      `Всего записей: ${state.pendingInputs.length}`
     ].join('\n'),
     attachments: commandButtonKeyboard(
       [
-        { text: 'Подтвердить', command: '/confirm' },
-        { text: 'Отменить', command: '/cancel' }
+        { text: 'Утверждаю', command: '/confirm' },
+        { text: 'Добавить еще', command: '/add-more' }
       ],
       2
     )
@@ -295,7 +349,7 @@ function parseMm(token: string): number | null {
   return Math.round(value * 10) / 10;
 }
 
-async function submitWater(context: BotContext, pending: PendingFieldInput): Promise<string> {
+async function submitWater(context: BotContext, pendingInputs: PendingFieldInput[]): Promise<string> {
   const currentContext = await context.kornixClient.getCurrentContext(context.seasonYear);
   if (!currentContext.currentAppliedCalculationRunId) {
     return 'Полив не отправлен: в KORNIX нет currentAppliedCalculationRunId.';
@@ -311,10 +365,11 @@ async function submitWater(context: BotContext, pending: PendingFieldInput): Pro
     scopeVersion: currentContext.managedScope.scopeVersion
   };
 
-  if (!isFieldInManagedScope(pending.field.fieldSeasonId, managedScope)) {
+  if (pendingInputs.some((pending) => !isFieldInManagedScope(pending.field.fieldSeasonId, managedScope))) {
     return 'Полив не отправлен: выбранное поле сейчас вне managedScope KORNIX.';
   }
-  if (!isDateInManagedScope(pending.date, managedScope)) {
+  const invalidDate = pendingInputs.find((pending) => !isDateInManagedScope(pending.date, managedScope));
+  if (invalidDate) {
     return `Полив не отправлен: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
   }
 
@@ -330,13 +385,18 @@ async function submitWater(context: BotContext, pending: PendingFieldInput): Pro
     }
   }
 
-  const key = fieldDateKey(pending);
-  const previous = layer.get(key);
-  layer.set(key, {
-    fieldSeasonId: pending.field.fieldSeasonId,
-    irrigationDate: pending.date,
-    irrigationMm: pending.mm
-  });
+  const added: ReturnType<typeof diffEntry>[] = [];
+  const updated: ReturnType<typeof diffEntry>[] = [];
+  for (const pending of pendingInputs) {
+    const key = fieldDateKey(pending);
+    const previous = layer.get(key);
+    layer.set(key, {
+      fieldSeasonId: pending.field.fieldSeasonId,
+      irrigationDate: pending.date,
+      irrigationMm: pending.mm
+    });
+    (previous ? updated : added).push(diffEntry(pending));
+  }
 
   const response = await context.kornixClient.submitWaterRegimeApproval({
     seasonYear: context.seasonYear,
@@ -345,24 +405,26 @@ async function submitWater(context: BotContext, pending: PendingFieldInput): Pro
     managedScope,
     irrigationLayer: [...layer.values()],
     clientDiff: {
-      added: previous ? [] : [diffEntry(pending)],
-      updated: previous ? [diffEntry(pending)] : [],
+      added,
+      updated,
       deleted: []
     }
   });
 
-  return [
+  return [...pendingInputs.flatMap((pending) => [
     'Полив отправлен в KORNIX.',
-    `Поле: ${fieldLabel(pending.field)}`,
-    `Дата: ${pending.date}`,
+    `Поле: ${fieldNumber(pending.field)}`,
+    `Дата: ${formatDisplayDate(pending.date)}`,
     `Полив: ${formatMm(pending.mm)} мм`,
+    ''
+  ]),
     `approvalStatus: ${response.approvalStatus}`,
     `calculationStatus: ${response.calculationStatus}`,
     `approvalBatchId: ${response.approvalBatchId}`
   ].join('\n');
 }
 
-async function submitRain(context: BotContext, pending: PendingFieldInput): Promise<string> {
+async function submitRain(context: BotContext, pendingInputs: PendingFieldInput[]): Promise<string> {
   const currentContext = await context.kornixClient.getCurrentContext(context.seasonYear);
   if (!currentContext.currentAppliedCalculationRunId) {
     return 'Осадки не отправлены: в KORNIX нет currentAppliedCalculationRunId.';
@@ -378,10 +440,11 @@ async function submitRain(context: BotContext, pending: PendingFieldInput): Prom
     scopeVersion: currentContext.managedScope.scopeVersion
   };
 
-  if (!isFieldInManagedScope(pending.field.fieldSeasonId, managedScope)) {
+  if (pendingInputs.some((pending) => !isFieldInManagedScope(pending.field.fieldSeasonId, managedScope))) {
     return 'Осадки не отправлены: выбранное поле сейчас вне managedScope KORNIX.';
   }
-  if (!isDateInManagedScope(pending.date, managedScope)) {
+  const invalidDate = pendingInputs.find((pending) => !isDateInManagedScope(pending.date, managedScope));
+  if (invalidDate) {
     return `Осадки не отправлены: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
   }
 
@@ -392,17 +455,19 @@ async function submitRain(context: BotContext, pending: PendingFieldInput): Prom
     managedScope,
     precipitationLayer: [],
     clientDiff: {
-      added: [precipitationDiffEntry(pending)],
+      added: pendingInputs.map(precipitationDiffEntry),
       updated: [],
       deleted: []
     }
   });
 
-  return [
+  return [...pendingInputs.flatMap((pending) => [
     'Осадки отправлены в KORNIX.',
-    `Поле: ${fieldLabel(pending.field)}`,
-    `Дата: ${pending.date}`,
+    `Поле: ${fieldNumber(pending.field)}`,
+    `Дата: ${formatDisplayDate(pending.date)}`,
     `Осадки: ${formatMm(pending.mm)} мм`,
+    ''
+  ]),
     `approvalStatus: ${response.approvalStatus}`,
     `calculationStatus: ${response.calculationStatus}`,
     `precipitationBatchId: ${response.precipitationBatchId}`
@@ -489,10 +554,6 @@ function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
 }
 
-function fieldLabel(field: FieldSeasonCatalogFieldDto): string {
-  return `Поле ${fieldNumber(field)} (${fieldDetails(field)})`;
-}
-
 function fieldDetails(field: FieldSeasonCatalogFieldDto): string {
   const crop = field.cropName ? `, ${field.cropName}` : '';
   return `${formatArea(field.areaHa)} га${crop}`;
@@ -523,6 +584,30 @@ function kindLabel(kind: InputKind): string {
 
 function formatMm(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatMetric(value: number | null, unit: string): string {
+  return value === null ? 'нет данных' : `${formatMm(value)} ${unit}`;
+}
+
+function formatRecommendation(date: string | null, mm: number | null): string {
+  return !date || mm === null ? 'не требуется' : `${formatDisplayDate(date)}, ${formatMm(mm)} мм`;
+}
+
+function statusLabel(status: string): string {
+  return ({
+    ok: 'норма',
+    warning: 'требует внимания',
+    critical: 'критический',
+    no_data: 'нет данных',
+    not_calculated: 'не рассчитан',
+    calculation_failed: 'ошибка расчёта'
+  } as Record<string, string>)[status] ?? status;
+}
+
+function formatDisplayDate(date: string): string {
+  const [year, month, day] = date.split('-');
+  return year && month && day ? `${day}.${month}.${year}` : date;
 }
 
 function formatDate(date: Date): string {
