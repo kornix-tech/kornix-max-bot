@@ -52,9 +52,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     nodeEnv,
     port: readPort(env),
-    publicBaseUrl: readString(env, 'PUBLIC_BASE_URL', 'https://poliv360.ru'),
     kornixApiBaseUrl: readString(env, 'KORNIX_API_BASE_URL', 'https://poliv360.ru'),
-    kornixApiPrefix: readString(env, 'KORNIX_API_PREFIX', '/api/v2/kornix'),
     kornixServiceToken,
     kornixInternalServiceIdentity: readString(
       env,

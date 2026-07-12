@@ -1,14 +1,9 @@
 import { fetch, type RequestInit, type Response } from 'undici';
-import { kornixEndpoints, type QueryParams } from './kornixEndpoints.js';
+import { kornixEndpoints } from './kornixEndpoints.js';
 import type {
   ApiErrorEnvelopeDto,
-  CurrentUserDto,
   FieldSeasonCatalogDto,
-  FieldSeasonMapFeatureCollectionDto,
-  GetFieldSeasonMapParams,
-  GetProfileTimeseriesParams,
   KornixApprovalRequestDto,
-  KornixApprovalStatusDto,
   KornixApprovalSubmitResponseDto,
   KornixClientOptions,
   KornixCurrentContextDto,
@@ -16,7 +11,6 @@ import type {
   KornixManualPrecipitationRequestDto,
   KornixManualPrecipitationResponseDto,
   KornixMethodsResponseDto,
-  KornixProfileTimeseriesDto,
   KornixReadinessDto
 } from './kornixTypes.js';
 
@@ -67,7 +61,6 @@ type RequestMethod = 'GET' | 'POST';
 
 type RequestOptions = {
   method?: RequestMethod;
-  query?: QueryParams;
   body?: unknown;
   timeoutMs?: number;
 };
@@ -92,23 +85,8 @@ function ensurePositiveTimeout(timeoutMs: number): number {
   return timeoutMs;
 }
 
-function buildUrl(baseUrl: string, path: string, query?: QueryParams): string {
-  const url = new URL(path, `${baseUrl}/`);
-  if (query) {
-    for (const [key, value] of Object.entries(query)) {
-      if (Array.isArray(value)) {
-        const filtered = value.filter((item): item is string | number | boolean => item !== null && item !== undefined);
-        if (filtered.length > 0) {
-          url.searchParams.set(key, filtered.map(String).join(','));
-        }
-        continue;
-      }
-      if (value !== null && value !== undefined) {
-        url.searchParams.set(key, String(value));
-      }
-    }
-  }
-  return url.toString();
+function buildUrl(baseUrl: string, path: string): string {
+  return new URL(path, `${baseUrl}/`).toString();
 }
 
 function isAbortError(error: unknown): boolean {
@@ -150,10 +128,6 @@ export class KornixClient {
     this.logger = logger;
   }
 
-  getMe(): Promise<CurrentUserDto> {
-    return this.request<CurrentUserDto>(kornixEndpoints.me);
-  }
-
   getCurrentContext(seasonYear: number): Promise<KornixCurrentContextDto> {
     return this.request<KornixCurrentContextDto>(kornixEndpoints.currentContext(seasonYear));
   }
@@ -174,14 +148,6 @@ export class KornixClient {
     return this.request<FieldSeasonCatalogDto>(kornixEndpoints.fieldSeasonCatalog(seasonYear));
   }
 
-  getFieldSeasonMap(params: GetFieldSeasonMapParams): Promise<FieldSeasonMapFeatureCollectionDto> {
-    return this.request<FieldSeasonMapFeatureCollectionDto>(kornixEndpoints.fieldSeasonMap(params));
-  }
-
-  getProfileTimeseries(params: GetProfileTimeseriesParams): Promise<KornixProfileTimeseriesDto> {
-    return this.request<KornixProfileTimeseriesDto>(kornixEndpoints.profileTimeseries(params));
-  }
-
   submitWaterRegimeApproval(payload: KornixApprovalRequestDto): Promise<KornixApprovalSubmitResponseDto> {
     return this.request<KornixApprovalSubmitResponseDto>(kornixEndpoints.waterRegimeApprovals, {
       method: 'POST',
@@ -198,17 +164,13 @@ export class KornixClient {
     });
   }
 
-  getApprovalStatus(approvalBatchId: string): Promise<KornixApprovalStatusDto> {
-    return this.request<KornixApprovalStatusDto>(kornixEndpoints.approvalStatus(approvalBatchId));
-  }
-
   async request<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
     const method = options.method ?? 'GET';
     const timeoutMs = options.timeoutMs ?? this.timeoutMs;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = performance.now();
-    const url = buildUrl(this.baseUrl, path, options.query);
+    const url = buildUrl(this.baseUrl, path);
     const headers: Record<string, string> = { ...DEFAULT_HEADERS };
 
     if (this.serviceToken) {

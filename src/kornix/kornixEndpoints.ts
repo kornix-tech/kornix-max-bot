@@ -1,5 +1,3 @@
-import type { CalculationRunId, GetFieldSeasonMapParams, GetProfileTimeseriesParams } from './kornixTypes.js';
-
 export const KORNIX_API_PREFIX = '/api/v2/kornix';
 
 export type QueryPrimitive = string | number | boolean | null | undefined;
@@ -29,7 +27,6 @@ function pathWithQuery(path: string, params: QueryParams): string {
 }
 
 export const kornixEndpoints = {
-  me: '/api/v2/me',
   methods: `${KORNIX_API_PREFIX}/methods`,
   waterRegimeApprovals: `${KORNIX_API_PREFIX}/water-regime/approvals`,
   precipitationManual: `${KORNIX_API_PREFIX}/precipitation-layer/manual`,
@@ -50,28 +47,4 @@ export const kornixEndpoints = {
     return pathWithQuery(`${KORNIX_API_PREFIX}/field-seasons/catalog`, { seasonYear });
   },
 
-  fieldSeasonMap(params: GetFieldSeasonMapParams): string {
-    return pathWithQuery(`${KORNIX_API_PREFIX}/field-seasons/map`, {
-      calculationRunId: params.calculationRunId,
-      methodCode: params.methodCode,
-      day: params.day
-    });
-  },
-
-  profileTimeseries(params: GetProfileTimeseriesParams): string {
-    return pathWithQuery(`${KORNIX_API_PREFIX}/water-regime/profile-timeseries`, {
-      calculationRunId: params.calculationRunId,
-      methodCode: params.methodCode,
-      fieldSeasonIds: params.fieldSeasonIds,
-      aggregation: params.fieldSeasonIds.length > 1 ? (params.aggregation ?? 'area_weighted_mean') : params.aggregation
-    });
-  },
-
-  approvalStatus(approvalBatchId: string): string {
-    return `${KORNIX_API_PREFIX}/water-regime/approvals/${encodeURIComponent(approvalBatchId)}`;
-  },
-
-  calculationRunStatus(calculationRunId: CalculationRunId): string {
-    return `${KORNIX_API_PREFIX}/water-regime/calculation-runs/${encodeURIComponent(calculationRunId)}`;
-  }
 } as const;

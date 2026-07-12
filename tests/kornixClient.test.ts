@@ -8,7 +8,7 @@ import {
   setGlobalDispatcher
 } from 'undici';
 import { ApiError, KornixClient, NetworkError, ValidationError, type KornixLogger } from '../src/kornix/kornixClient.js';
-import type { CurrentUserDto, KornixCurrentContextDto } from '../src/kornix/kornixTypes.js';
+import type { KornixCurrentContextDto } from '../src/kornix/kornixTypes.js';
 
 const BASE_URL = 'https://kornix-api.test';
 
@@ -50,17 +50,6 @@ async function captureError(promise: Promise<unknown>): Promise<unknown> {
     return error;
   }
   assert.fail('Expected promise to reject.');
-}
-
-function currentUserFixture(): CurrentUserDto {
-  return {
-    id: 'internal-service:max-bot',
-    displayName: 'KORNIX Operational Scheduler',
-    email: null,
-    organizationCode: 'SP',
-    organizationName: 'SP',
-    roles: ['viewer']
-  };
 }
 
 function currentContextFixture(): KornixCurrentContextDto {
@@ -139,18 +128,18 @@ describe('KornixClient', () => {
   it('performs a successful request and logs start/end metadata', async () => {
     mockPool
       .intercept({
-        path: '/api/v2/me',
+        path: '/api/v2/kornix/current-context?seasonYear=2026',
         method: 'GET',
         headers: {
           authorization: 'Bearer service-token',
           'x-kornix-internal-service': 'max-bot'
         }
       })
-      .reply(200, currentUserFixture());
+      .reply(200, currentContextFixture());
 
-    const response = await createClient().getMe();
+    const response = await createClient().getCurrentContext(2026);
 
-    assert.equal(response.id, 'internal-service:max-bot');
+    assert.equal(response.organizationCode, 'SP');
     assert.equal(logs[0]?.message, 'kornix_request_started');
     assert.equal(logs[1]?.message, 'kornix_request_finished');
     assert.equal(logs[1]?.meta?.status, 200);
@@ -182,7 +171,9 @@ describe('KornixClient', () => {
         }
       });
 
-    const error = await captureError(createClient().getApprovalStatus('missing-batch'));
+    const error = await captureError(
+      createClient().request('/api/v2/kornix/water-regime/approvals/missing-batch')
+    );
 
     assert.ok(error instanceof ApiError);
     assert.equal(error.status, 404);
@@ -201,9 +192,12 @@ describe('KornixClient', () => {
   });
 
   it('throws NetworkError on request timeout', async () => {
-    mockPool.intercept({ path: '/api/v2/me', method: 'GET' }).reply(200, currentUserFixture()).delay(50);
+    mockPool
+      .intercept({ path: '/api/v2/kornix/current-context?seasonYear=2026', method: 'GET' })
+      .reply(200, currentContextFixture())
+      .delay(50);
 
-    const error = await captureError(createClient(1).getMe());
+    const error = await captureError(createClient(1).getCurrentContext(2026));
 
     assert.ok(error instanceof NetworkError);
     assert.match(error.message, /timed out/i);
@@ -211,10 +205,10 @@ describe('KornixClient', () => {
 
   it('throws ValidationError on invalid JSON', async () => {
     mockPool
-      .intercept({ path: '/api/v2/me', method: 'GET' })
+      .intercept({ path: '/api/v2/kornix/current-context?seasonYear=2026', method: 'GET' })
       .reply(200, 'not-json', { headers: { 'content-type': 'application/json' } });
 
-    const error = await captureError(createClient().getMe());
+    const error = await captureError(createClient().getCurrentContext(2026));
 
     assert.ok(error instanceof ValidationError);
     assert.match(error.message, /invalid JSON/i);
