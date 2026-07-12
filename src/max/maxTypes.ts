@@ -1,4 +1,4 @@
-import type { JsonObject, JsonValue } from '../kornix/kornixTypes.js';
+import type { JsonObject } from '../kornix/kornixTypes.js';
 
 export type MaxId = string | number;
 
@@ -59,16 +59,7 @@ export type MaxCallback = {
   [key: string]: unknown;
 };
 
-export type MaxUpdateType =
-  | 'message_created'
-  | 'message_callback'
-  | 'bot_started'
-  | 'bot_added'
-  | 'bot_stopped'
-  | 'bot_removed'
-  | 'message_edited'
-  | 'message_removed'
-  | string;
+export type MaxUpdateType = string;
 
 export type MaxUpdate = {
   update_type?: MaxUpdateType;
@@ -81,18 +72,13 @@ export type MaxUpdate = {
   [key: string]: unknown;
 };
 
-export type MaxIncomingMessageUpdate = MaxUpdate & {
-  update_type: 'message_created';
-  message: MaxMessage;
-};
-
 export type MaxOutgoingMessage = {
   text?: string | null;
   attachments?: unknown[] | null;
   link?: JsonObject | null;
   notify?: boolean;
   format?: 'markdown' | 'html';
-  [key: string]: JsonValue | unknown;
+  [key: string]: unknown;
 };
 
 export type MaxInlineKeyboardButton = {
@@ -100,7 +86,7 @@ export type MaxInlineKeyboardButton = {
   text: string;
   payload?: string | JsonObject | null;
   url?: string;
-  [key: string]: JsonValue | unknown;
+  [key: string]: unknown;
 };
 
 export type MaxInlineKeyboardAttachment = {
@@ -109,8 +95,6 @@ export type MaxInlineKeyboardAttachment = {
     buttons: MaxInlineKeyboardButton[][];
   };
 };
-
-export type MaxSendMessageRequest = MaxOutgoingMessage;
 
 export type MaxSendMessageResponse = {
   message?: MaxMessage;

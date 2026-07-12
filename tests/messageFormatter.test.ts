@@ -2,16 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   formatContext,
-  formatFields,
   formatHelp,
   formatMethods,
   formatReadiness,
-  formatStart,
   formatStatus,
   formatUnknownCommand
 } from '../src/bot/messageFormatter.js';
 import type {
-  FieldSeasonCatalogDto,
   KornixCurrentContextDto,
   KornixMethodsResponseDto,
   KornixReadinessDto
@@ -99,7 +96,6 @@ function contextFixture(): KornixCurrentContextDto {
 
 describe('messageFormatter', () => {
   it('formats command lists without markdown requirements', () => {
-    assert.match(formatStart(), /КОРНИКС МАКС БОТ/);
     assert.match(formatHelp(), /Нажмите кнопку/);
     assert.match(formatUnknownCommand('/wat'), /Неизвестная команда: \/wat/);
   });
@@ -108,33 +104,6 @@ describe('messageFormatter', () => {
     assert.match(formatContext(contextFixture()), /Полей: 2/);
     assert.match(formatStatus(readinessFixture()), /productionStatus: ready/);
     assert.match(formatReadiness(readinessFixture()), /operationalRequiredPass: yes/);
-  });
-
-  it('formats fields with a 10-item limit and total hint', () => {
-    const catalog: FieldSeasonCatalogDto = {
-      organizationCode: 'SP',
-      seasonYear: 2026,
-      generatedAt: '2026-07-05T10:00:00+03:00',
-      fields: Array.from({ length: 12 }, (_, index) => ({
-        fieldId: `field-${index}`,
-        fieldSeasonId: `field-season-${index}`,
-        fieldKey: `F-${index}`,
-        fieldName: `Поле ${index}`,
-        areaHa: index + 1,
-        cropName: 'Пшеница',
-        cropSowingDate: null,
-        koef_upper_limit: null,
-        koef_optimum: null,
-        koef_lower_limit: null,
-        geometry: null
-      }))
-    };
-
-    const text = formatFields(catalog);
-
-    assert.match(text, /1\. Поле 0/);
-    assert.doesNotMatch(text, /11\. Поле 10/);
-    assert.match(text, /Показаны первые 10 из 12 полей/);
   });
 
   it('formats methods with default and flags', () => {

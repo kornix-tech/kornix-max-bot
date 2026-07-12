@@ -1,4 +1,5 @@
 import { fetch, type RequestInit, type Response } from 'undici';
+import type { Logger } from '../utils/logger.js';
 import { kornixEndpoints } from './kornixEndpoints.js';
 import type {
   ApiErrorEnvelopeDto,
@@ -13,13 +14,6 @@ import type {
   KornixMethodsResponseDto,
   KornixReadinessDto
 } from './kornixTypes.js';
-
-export type KornixLogger = {
-  debug(message: string, meta?: Record<string, unknown>): void;
-  info(message: string, meta?: Record<string, unknown>): void;
-  warn(message: string, meta?: Record<string, unknown>): void;
-  error(message: string, meta?: Record<string, unknown>): void;
-};
 
 export class ApiError extends Error {
   readonly status: number;
@@ -118,9 +112,9 @@ export class KornixClient {
   readonly serviceToken: string;
   readonly internalServiceIdentity: string;
   readonly timeoutMs: number;
-  private readonly logger: KornixLogger;
+  private readonly logger: Logger;
 
-  constructor(options: KornixClientOptions, logger: KornixLogger = console) {
+  constructor(options: KornixClientOptions, logger: Logger = console) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
     this.serviceToken = options.serviceToken.trim();
     this.internalServiceIdentity = options.internalServiceIdentity.trim();

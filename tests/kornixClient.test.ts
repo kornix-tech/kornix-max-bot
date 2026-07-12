@@ -7,8 +7,9 @@ import {
   type MockPool,
   setGlobalDispatcher
 } from 'undici';
-import { ApiError, KornixClient, NetworkError, ValidationError, type KornixLogger } from '../src/kornix/kornixClient.js';
+import { ApiError, KornixClient, NetworkError, ValidationError } from '../src/kornix/kornixClient.js';
 import type { KornixCurrentContextDto } from '../src/kornix/kornixTypes.js';
+import type { Logger } from '../src/utils/logger.js';
 
 const BASE_URL = 'https://kornix-api.test';
 
@@ -22,7 +23,7 @@ let mockAgent: MockAgent;
 let mockPool: MockPool;
 let logs: LogEntry[];
 
-function createLogger(): KornixLogger {
+function createLogger(): Logger {
   return {
     debug: (message, meta) => logs.push({ message, meta }),
     info: (message, meta) => logs.push({ message, meta }),

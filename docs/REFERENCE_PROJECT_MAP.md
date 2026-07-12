@@ -172,7 +172,7 @@ Frontend - Vite/React/TypeScript SPA с React Router и TanStack Query. Backend 
 - `src/shared/api/httpClient.ts` - typed fetch wrapper, credentials include, CSRF bootstrap/retry, normalized API errors.
 - `src/features/auth/` - BFF/session auth client, provider, guard, login page.
 - `src/features/water-regime/derivedWaterMetrics.ts` - derived UI metrics.
-- `src/types/kornix.ts` - TypeScript mirror DTO.
+- `src/kornix/kornixTypes.ts` - TypeScript mirror DTO.
 - `src/workspace/` - основная рабочая зона: карта, график, ввод поливов, экспорт, URL/session state.
 - `src/config/metrics.ts` - frontend metric catalog.
 

@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { loadConfig } from './config/config.js';
-import { createMaxWebhookHttpHandler, healthHandler } from './handlers/index.js';
+import { healthHandler } from './handlers/healthHandler.js';
+import { createMaxWebhookHttpHandler } from './handlers/maxWebhookHandler.js';
 import { ConversationStateStore } from './bot/conversationState.js';
 import { KornixClient } from './kornix/kornixClient.js';
 import { MaxClient } from './max/maxClient.js';

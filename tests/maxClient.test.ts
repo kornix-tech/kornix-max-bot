@@ -14,7 +14,7 @@ import {
   MaxValidationError,
   type MaxClientOptions
 } from '../src/max/maxClient.js';
-import type { KornixLogger } from '../src/kornix/kornixClient.js';
+import type { Logger } from '../src/utils/logger.js';
 
 const BASE_URL = 'https://platform-api2.max.test';
 
@@ -28,7 +28,7 @@ let mockAgent: MockAgent;
 let mockPool: MockPool;
 let logs: LogEntry[];
 
-function createLogger(): KornixLogger {
+function createLogger(): Logger {
   return {
     debug: (message, meta) => logs.push({ message, meta }),
     info: (message, meta) => logs.push({ message, meta }),

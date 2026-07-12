@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { fetch, type RequestInit, type Response } from 'undici';
-import type { KornixLogger } from '../kornix/kornixClient.js';
+import type { Logger } from '../utils/logger.js';
 import type {
   MaxAnswerCallbackRequest,
   MaxAnswerCallbackResponse,
   MaxId,
   MaxOutgoingMessage,
   MaxSendMessageOptions,
-  MaxSendMessageRequest,
   MaxSendMessageResponse
 } from './maxTypes.js';
 
@@ -17,19 +16,11 @@ export type MaxClientOptions = {
   timeoutMs: number;
 };
 
-type RequestMethod = 'POST';
-
 type RequestOptions = {
-  method?: RequestMethod;
   query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
   timeoutMs?: number;
 };
-
-export const maxEndpoints = {
-  messages: '/messages',
-  answers: '/answers'
-} as const;
 
 export class MaxApiError extends Error {
   readonly status: number;
@@ -114,9 +105,9 @@ export class MaxClient {
   readonly baseUrl: string;
   readonly botToken: string;
   readonly timeoutMs: number;
-  private readonly logger: KornixLogger;
+  private readonly logger: Logger;
 
-  constructor(options: MaxClientOptions, logger: KornixLogger = console) {
+  constructor(options: MaxClientOptions, logger: Logger = console) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
     this.botToken = options.botToken.trim();
     this.timeoutMs = ensurePositiveTimeout(options.timeoutMs);
@@ -136,15 +127,14 @@ export class MaxClient {
     if (text && options.notify === false) {
       payload.message = null;
     }
-    return this.request<MaxAnswerCallbackResponse>(maxEndpoints.answers, {
-      method: 'POST',
+    return this.request<MaxAnswerCallbackResponse>('/answers', {
       query: { callback_id: callbackId },
       body: payload
     });
   }
 
   async request<TResponse>(endpoint: string, options: RequestOptions = {}): Promise<TResponse> {
-    const method = options.method ?? 'POST';
+    const method = 'POST';
     const timeoutMs = options.timeoutMs ?? this.timeoutMs;
     const requestId = randomUUID();
     const url = buildUrl(this.baseUrl, endpoint, options.query);
@@ -209,15 +199,9 @@ export class MaxClient {
     if (options.notify !== undefined) {
       message.notify = options.notify;
     }
-    const body: MaxSendMessageRequest = this.buildMessageBody(message);
-    return this.request<MaxSendMessageResponse>(maxEndpoints.messages, {
-      method: 'POST',
+    return this.request<MaxSendMessageResponse>('/messages', {
       query,
-      body
+      body: message
     });
-  }
-
-  private buildMessageBody(message: MaxOutgoingMessage): MaxSendMessageRequest {
-    return message;
   }
 }

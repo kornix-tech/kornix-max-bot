@@ -1,13 +1,8 @@
 import type {
-  FieldSeasonCatalogDto,
   KornixCurrentContextDto,
   KornixMethodsResponseDto,
   KornixReadinessDto
 } from '../kornix/kornixTypes.js';
-
-export function formatStart(): string {
-  return ['КОРНИКС МАКС БОТ', 'Ввод поливов и осадков по полям.'].join('\n');
-}
 
 export function formatHelp(): string {
   return [
@@ -50,19 +45,6 @@ export function formatContext(context: KornixCurrentContextDto): string {
     `frontendMode: ${context.frontendMode}`,
     `submitAllowed: ${context.submitAllowed ? 'yes' : 'no'}`
   ].join('\n');
-}
-
-export function formatFields(catalog: FieldSeasonCatalogDto, limit = 10): string {
-  const fields = catalog.fields.slice(0, limit);
-  const lines = fields.map((field, index) => {
-    const crop = field.cropName ?? 'культура не указана';
-    return `${index + 1}. ${field.fieldName} | ${crop} | ${field.areaHa} га | ${field.fieldSeasonId}`;
-  });
-  const tail =
-    catalog.fields.length > limit
-      ? [`Показаны первые ${limit} из ${catalog.fields.length} полей.`]
-      : [`Всего полей: ${catalog.fields.length}.`];
-  return ['Поля KORNIX', ...lines, ...tail].join('\n');
 }
 
 export function formatMethods(methods: KornixMethodsResponseDto): string {
