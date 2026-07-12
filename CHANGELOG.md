@@ -1,5 +1,9 @@
 # Журнал изменений
 
+## 2026-07-12
+
+- Создан актуальный граф проекта в `codebase-memory-mcp`, а в `AGENTS.md` закреплён приоритет графовых инструментов для навигации и анализа кода.
+
 ## 2026-07-10
 
 - Исправлена отправка ручных осадков из MAX-бота: payload приведён к live backend contract `precipitation-layer/manual` с `baseCalculationRunId`, precipitation `managedScope` и sparse `clientDiff`.
