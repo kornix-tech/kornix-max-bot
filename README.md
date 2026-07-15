@@ -16,14 +16,16 @@ The bot must not connect to the database and must not parse the frontend. Its on
 Current implementation:
 
 - reference repositories audited and documented in `docs/`;
-- TypeScript project scaffold created;
-- KORNIX API client implemented;
-- MAX API client implemented;
-- MAX webhook verifier and handler implemented;
+- KORNIX and MAX API clients implemented;
+- MAX webhook verification and handling implemented;
 - read-only commands: `/start`, `/help`, `/status`, `/context`, `/fields`, `/methods`, `/readiness`;
+- button-based field selection and current field status;
+- irrigation and precipitation entry with date and millimeter selection;
+- queued changes for multiple fields with review, confirmation and cancellation before submission;
 - HTTP server exposes `GET /health` and `POST /max/webhook`;
-- production Docker/deploy scaffold is available in `deploy/`;
-- auth flows, user binding, database access and write irrigation commands are intentionally not implemented yet.
+- production Docker deployment is available in `deploy/`.
+
+The complete baseline feature set is released as `v1.0.0`.
 
 ## Structure
 
@@ -73,10 +75,4 @@ Detailed production notes are in `deploy/README_DEPLOY_VDS.md`.
 
 ## Roadmap
 
-1. Confirm the production backend branch/API version to use.
-2. Decide bot authorization model for read-only and approval actions.
-3. Add KORNIX API client implementation and contract tests.
-4. Add MAX webhook verification and outgoing message client.
-5. Add command handlers for read-only status, fields, map/profile summaries and irrigation workflows.
-6. Add production subscription/idempotency hardening.
-7. Decide auth/user binding before any write workflow.
+Development after `v1.0.0` focuses on incremental UX improvements, reliability hardening and new bot features.

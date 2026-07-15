@@ -1,10 +1,10 @@
 {
   "name": "kornix-max-bot",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",
-  "description": "MAX Messenger bot service shell for KORNIX/POLIV360 backend API integration.",
+  "description": "MAX Messenger bot for KORNIX/POLIV360 field status, irrigation and precipitation workflows.",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
