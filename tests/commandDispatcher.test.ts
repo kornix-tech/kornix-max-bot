@@ -345,6 +345,8 @@ describe('dispatchCommand', () => {
     assert.match((await dispatchCommand(parseCommand('/add-more'), context)).text, /Добавлено записей: 1/);
     await dispatchCommand(parseCommand('/field 2.1'), context);
     const secondDraft = await dispatchCommand(parseCommand('/water 2026-07-05 20'), context);
+    assert.match(secondDraft.text, /1\. Поле: 1\.1\nПолив: 10 мм\nДата: 05\.07\.2026/);
+    assert.match(secondDraft.text, /2\. Поле: 2\.1\nПолив: 20 мм\nДата: 05\.07\.2026/);
     assert.match(secondDraft.text, /Всего записей: 2/);
 
     const response = await dispatchCommand(parseCommand('/confirm'), context);

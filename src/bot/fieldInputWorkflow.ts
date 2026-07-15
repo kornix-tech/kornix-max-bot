@@ -243,9 +243,11 @@ function setPendingInput(
   return {
     text: [
       'Проверьте данные:',
-      `Поле: ${fieldNumber(field)}`,
-      `${kindLabel(kind)}: ${formatMm(parsed.mm)} мм`,
-      `Дата: ${formatDisplayDate(parsed.date)}`,
+      ...state.pendingInputs.map((item, index) => [
+        `${index + 1}. Поле: ${fieldNumber(item.field)}`,
+        `${kindLabel(item.kind)}: ${formatMm(item.mm)} мм`,
+        `Дата: ${formatDisplayDate(item.date)}`
+      ].join('\n')),
       `Всего записей: ${state.pendingInputs.length}`
     ].join('\n'),
     attachments: commandButtonKeyboard(
