@@ -5,6 +5,9 @@ services:
       context: ..
       dockerfile: Dockerfile
     restart: unless-stopped
+    cpus: ${KORNIX_MAX_BOT_CPUS:-0.25}
+    mem_limit: ${KORNIX_MAX_BOT_MEM_LIMIT:-256m}
+    pids_limit: ${KORNIX_MAX_BOT_PIDS_LIMIT:-128}
     env_file:
       - ../.env.production
     volumes:
@@ -24,6 +27,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: ${KORNIX_MAX_BOT_LOG_MAX_SIZE:-10m}
+        max-file: ${KORNIX_MAX_BOT_LOG_MAX_FILE:-5}
 
 networks:
   kornix_meteo_net:
