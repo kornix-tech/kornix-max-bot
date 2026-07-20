@@ -483,7 +483,9 @@ async function loadVisibleFields(context: BotContext): Promise<FieldSeasonCatalo
     current.defaultMethodCode,
     current.serverDate
   );
+  const visibleFieldSeasonIds = new Set(current.managedScope.fieldSeasonIds);
   return map.features
+    .filter((feature) => visibleFieldSeasonIds.has(feature.properties.fieldSeasonId))
     .map((feature) => mapFieldToCatalogField(feature.properties))
     .sort((left, right) => compareFieldKeys(left.fieldKey, right.fieldKey));
 }

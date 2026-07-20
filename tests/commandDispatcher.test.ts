@@ -363,19 +363,34 @@ describe('dispatchCommand', () => {
 
   it('lists only frontend map fields in numeric order without a 40-field limit', async () => {
     const unorderedNumbers = ['4.16', '1.11', '4.3', '1.3', ...Array.from({ length: 37 }, (_, index) => `8.${index + 1}`)];
+    const visibleFieldSeasonIds = unorderedNumbers.map((_, index) => `field-season-${index}`);
     const context = createContext({
+      getCurrentContext: async () => ({
+        ...contextFixture(),
+        managedScope: { ...contextFixture().managedScope, fieldSeasonIds: visibleFieldSeasonIds }
+      }),
       getFieldSeasonMap: async () => ({
         calculationRunId: 'run-1',
         generatedAt: '2026-07-05T10:00:00+03:00',
         day: '2026-07-05',
-        features: unorderedNumbers.map((number, index) => ({
-          properties: mapFieldFixture({
-            fieldId: `field-${index}`,
-            fieldSeasonId: `field-season-${index}`,
-            fieldKey: `SP:${number}`,
-            fieldName: `SP:${number}`
-          })
-        }))
+        features: [
+          ...unorderedNumbers.map((number, index) => ({
+            properties: mapFieldFixture({
+              fieldId: `field-${index}`,
+              fieldSeasonId: `field-season-${index}`,
+              fieldKey: `SP:${number}`,
+              fieldName: `SP:${number}`
+            })
+          })),
+          {
+            properties: mapFieldFixture({
+              fieldId: 'hidden-field',
+              fieldSeasonId: 'hidden-field-season',
+              fieldKey: 'SP:7.3',
+              fieldName: 'SP:7.3'
+            })
+          }
+        ]
       }),
       getFieldSeasonCatalog: async () => ({
         ...catalogFixture(),
@@ -389,6 +404,8 @@ describe('dispatchCommand', () => {
     assert.equal(buttons.length, 41);
     assert.deepEqual(buttons.slice(0, 4).map((button) => button.text), ['1.3', '1.11', '4.3', '4.16']);
     assert.equal(buttons.some((button) => button.text === '0.1'), false);
+    assert.equal(buttons.some((button) => button.text === '7.3'), false);
+    assert.match((await dispatchCommand(parseCommand('/field 7.3'), context)).text, /Поле не найдено/);
   });
 
   it('shows no-irrigation and unavailable metric fallbacks without blocking field selection', async () => {
