@@ -28,8 +28,8 @@ function pathWithQuery(path: string, params: QueryParams): string {
 
 export const kornixEndpoints = {
   methods: `${KORNIX_API_PREFIX}/methods`,
-  waterRegimeApprovals: `${KORNIX_API_PREFIX}/water-regime/approvals`,
-  precipitationManual: `${KORNIX_API_PREFIX}/precipitation-layer/manual`,
+  waterRegimeApprovals: `${KORNIX_API_PREFIX}/max-bot/water-regime/approvals`,
+  precipitationManual: `${KORNIX_API_PREFIX}/max-bot/precipitation-layer/manual`,
 
   currentContext(seasonYear: number): string {
     return pathWithQuery(`${KORNIX_API_PREFIX}/current-context`, { seasonYear });

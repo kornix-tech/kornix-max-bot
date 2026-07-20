@@ -395,7 +395,7 @@ async function submitWater(context: BotContext, pendingInputs: PendingFieldInput
   });
 
   return pendingInputs.flatMap((pending) => [
-    'Полив отправлен в KORNIX.',
+    'Полив принят KORNIX. Единый расчёт запустится через 5 минут после последнего изменения в MAX bot.',
     `Поле: ${fieldNumber(pending.field)}`,
     `Дата: ${formatDisplayDate(pending.date)}`,
     `Полив: ${formatMm(pending.mm)} мм`,
@@ -441,7 +441,7 @@ async function submitRain(context: BotContext, pendingInputs: PendingFieldInput[
   });
 
   return pendingInputs.flatMap((pending) => [
-    'Осадки отправлены в KORNIX.',
+    'Осадки приняты KORNIX. Единый расчёт запустится через 5 минут после последнего изменения в MAX bot.',
     `Поле: ${fieldNumber(pending.field)}`,
     `Дата: ${formatDisplayDate(pending.date)}`,
     `Осадки: ${formatMm(pending.mm)} мм`,

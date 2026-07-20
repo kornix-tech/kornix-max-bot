@@ -344,7 +344,7 @@ describe('dispatchCommand', () => {
       }
     ]);
     const confirmationResponse = await dispatchCommand(parseCommand('/confirm'), context);
-    assert.match(confirmationResponse.text, /Полив отправлен/);
+    assert.match(confirmationResponse.text, /Полив принят/);
     assert.doesNotMatch(confirmationResponse.text, /approvalStatus|calculationStatus|approvalBatchId/);
   });
 
@@ -595,7 +595,7 @@ describe('dispatchCommand', () => {
     await dispatchCommand(parseCommand('/fields'), context);
     await dispatchCommand(parseCommand('/field 1'), context);
     await dispatchCommand(parseCommand('/water 2026-07-10 25'), context);
-    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
+    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив принят/);
 
     assert.equal(submissions.length, 1);
     const submitted = submissions[0];
@@ -637,7 +637,7 @@ describe('dispatchCommand', () => {
     await dispatchCommand(parseCommand('/field 1'), context);
     assert.match((await dispatchCommand(parseCommand('/rain 2026-07-05 12.5'), context)).text, /Осадки: 12.5 мм/);
     const confirmationResponse = await dispatchCommand(parseCommand('/confirm'), context);
-    assert.match(confirmationResponse.text, /Осадки отправлены/);
+    assert.match(confirmationResponse.text, /Осадки приняты/);
     assert.doesNotMatch(confirmationResponse.text, /approvalStatus|calculationStatus|precipitationBatchId/);
 
     assert.equal(submissions.length, 1);
