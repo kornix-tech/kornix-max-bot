@@ -161,6 +161,33 @@ describe('KornixClient', () => {
     assert.equal(response.currentAppliedCalculationRunId, 'cwr_applied_1');
   });
 
+  it('loads calculation completion time from the calculation run endpoint', async () => {
+    mockPool
+      .intercept({
+        path: '/api/v2/kornix/water-regime/calculation-runs/cwr_applied_1',
+        method: 'GET'
+      })
+      .reply(200, {
+        calculationRunId: 'cwr_applied_1',
+        runKind: 'operational',
+        status: 'completed',
+        organizationCode: 'SP',
+        seasonYear: 2026,
+        serverDate: '2026-07-05',
+        calculationWindow: { from: '2026-04-01', to: '2026-07-12', timezone: 'Europe/Moscow' },
+        operationalMethodSetCode: 'production',
+        defaultMethodCode: 'simple_eto_single_layer_soil',
+        startedAt: '2026-07-05T09:00:00Z',
+        finishedAt: '2026-07-05T09:30:00Z',
+        warnings: [],
+        error: null
+      });
+
+    const response = await createClient().getCalculationRunStatus('cwr_applied_1');
+
+    assert.equal(response.finishedAt, '2026-07-05T09:30:00Z');
+  });
+
   it('throws ApiError for 404 envelopes', async () => {
     mockPool
       .intercept({ path: '/api/v2/kornix/water-regime/approvals/missing-batch', method: 'GET' })

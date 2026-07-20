@@ -51,4 +51,8 @@ export const kornixEndpoints = {
     return pathWithQuery(`${KORNIX_API_PREFIX}/field-seasons/map`, { calculationRunId, methodCode, day });
   },
 
+  calculationRunStatus(calculationRunId: string): string {
+    return `${KORNIX_API_PREFIX}/water-regime/calculation-runs/${encodeURIComponent(calculationRunId)}`;
+  },
+
 } as const;

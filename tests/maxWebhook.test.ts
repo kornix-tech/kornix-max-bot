@@ -188,6 +188,7 @@ describe('maxWebhook', () => {
       seasonYear: 2026,
       kornixClient: {
         ...createKornixClient(),
+        getCurrentContext: async () => ({ currentAppliedCalculationRunId: null }),
         getFieldSeasonCatalog: async () => ({
           organizationCode: 'SP',
           seasonYear: 2026,

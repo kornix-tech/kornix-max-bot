@@ -7,6 +7,7 @@ import type {
   FieldSeasonMapDto,
   KornixApprovalRequestDto,
   KornixApprovalSubmitResponseDto,
+  KornixCalculationRunStatusDto,
   KornixClientOptions,
   KornixCurrentContextDto,
   KornixCurrentIrrigationLayerDto,
@@ -145,6 +146,10 @@ export class KornixClient {
 
   getFieldSeasonMap(calculationRunId: string, methodCode: string, day: string): Promise<FieldSeasonMapDto> {
     return this.request<FieldSeasonMapDto>(kornixEndpoints.fieldSeasonMap(calculationRunId, methodCode, day));
+  }
+
+  getCalculationRunStatus(calculationRunId: string): Promise<KornixCalculationRunStatusDto> {
+    return this.request<KornixCalculationRunStatusDto>(kornixEndpoints.calculationRunStatus(calculationRunId));
   }
 
   submitWaterRegimeApproval(payload: KornixApprovalRequestDto): Promise<KornixApprovalSubmitResponseDto> {

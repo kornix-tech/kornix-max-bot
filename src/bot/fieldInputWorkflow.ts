@@ -3,6 +3,7 @@ import type { InputKind, PendingFieldInput } from './conversationState.js';
 import { commandButtonKeyboard } from './keyboards.js';
 import type {
   FieldSeasonCatalogFieldDto,
+  FieldSeasonMapPropertiesDto,
   KornixApprovalIrrigationCellDto,
   KornixApprovalManagedScopeDto
 } from '../kornix/kornixTypes.js';
@@ -18,11 +19,11 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const RU_DATE_RE = /^(\d{1,2})\.(\d{1,2})(?:\.(\d{2}|\d{4}))?$/;
 
 export async function listFieldsForSelection(context: BotContext): Promise<BotResponse> {
-  const catalog = await context.kornixClient.getFieldSeasonCatalog(context.seasonYear);
+  const fields = await loadVisibleFields(context);
   const state = context.conversationStore.get(context.userId, context.chatId);
-  state.lastFields = catalog.fields;
+  state.lastFields = fields;
 
-  const fieldButtons = catalog.fields.slice(0, 40).map((field) => {
+  const fieldButtons = fields.map((field) => {
     const number = fieldNumber(field);
     return { text: number, command: `/field ${number}` };
   });
@@ -52,21 +53,23 @@ export async function selectFieldHandler(context: BotContext, command: ParsedCom
   state.awaitingInput = null;
   state.inputDate = null;
 
+  let statusText: string;
+  try {
+    statusText = await loadFieldStatusText(context, field);
+  } catch {
+    statusText = unavailableFieldStatus(field);
+  }
+
   return {
     text: [
       `Выбрано поле ${fieldNumber(field)}`,
       fieldDetails(field),
       '',
+      statusText,
+      '',
       'Что внести?'
     ].join('\n'),
-    attachments: commandButtonKeyboard(
-      [
-        { text: 'Полив', command: '/water' },
-        { text: 'Осадки', command: '/rain' },
-        { text: 'Статус поля', command: '/field-status' }
-      ],
-      2
-    )
+    attachments: fieldActionKeyboard()
   };
 }
 
@@ -172,32 +175,11 @@ export async function fieldStatusHandler(context: BotContext): Promise<BotRespon
   if (!state.selectedField) {
     return { text: 'Сначала выберите поле.', attachments: chooseFieldKeyboard() };
   }
-  const current = await context.kornixClient.getCurrentContext(context.seasonYear);
-  if (!current.currentAppliedCalculationRunId) {
-    return { text: 'Статус поля недоступен: в KORNIX ещё нет применённого расчёта.' };
+  try {
+    return { text: await loadFieldStatusText(context, state.selectedField) };
+  } catch {
+    return { text: unavailableFieldStatus(state.selectedField) };
   }
-  const map = await context.kornixClient.getFieldSeasonMap(
-    current.currentAppliedCalculationRunId,
-    current.defaultMethodCode,
-    current.serverDate
-  );
-  const feature = map.features.find((item) => item.properties.fieldSeasonId === state.selectedField?.fieldSeasonId);
-  if (!feature) {
-    return { text: 'Статус выбранного поля не найден в текущем расчёте KORNIX.' };
-  }
-  const value = feature.properties;
-  return {
-    text: [
-      `Статус поля ${fieldNumber(state.selectedField)}`,
-      `Дата: ${formatDisplayDate(value.day)}`,
-      `Статус: ${statusLabel(value.latestStatus)}`,
-      `Влага в почве: ${formatMetric(value.soil_water_content_mm, 'мм')}`,
-      `Эффективные осадки: ${formatMetric(value.precipitation_effective_daily_mm, 'мм')}`,
-      `Эффективный полив: ${formatMetric(value.irrigation_effective_daily_mm, 'мм')}`,
-      `Рекомендуемый полив: ${formatRecommendation(value.recommended_irrigation_date, value.recommended_irrigation_mm)}`,
-      `Качество данных: ${value.dataQuality.calculationAvailable && value.dataQuality.forcingComplete ? 'данные актуальны' : 'есть ограничения'}`
-    ].join('\n')
-  };
 }
 
 export async function cancelHandler(context: BotContext): Promise<BotResponse> {
@@ -263,8 +245,7 @@ function setPendingInput(
 async function resolveField(context: BotContext, query: string): Promise<FieldSeasonCatalogFieldDto | null> {
   const state = context.conversationStore.get(context.userId, context.chatId);
   if (!state.lastFields.length) {
-    const catalog = await context.kornixClient.getFieldSeasonCatalog(context.seasonYear);
-    state.lastFields = catalog.fields;
+    state.lastFields = await loadVisibleFields(context);
   }
 
   const normalized = normalize(query);
@@ -490,6 +471,79 @@ function formatSubmitError(error: unknown, kind: InputKind): string {
   return `Не удалось сохранить ${label}. Попробуйте позже.`;
 }
 
+async function loadVisibleFields(context: BotContext): Promise<FieldSeasonCatalogFieldDto[]> {
+  const current = await context.kornixClient.getCurrentContext(context.seasonYear);
+  if (!current.currentAppliedCalculationRunId) {
+    const catalog = await context.kornixClient.getFieldSeasonCatalog(context.seasonYear);
+    return [...catalog.fields].sort((left, right) => compareFieldKeys(left.fieldKey, right.fieldKey));
+  }
+
+  const map = await context.kornixClient.getFieldSeasonMap(
+    current.currentAppliedCalculationRunId,
+    current.defaultMethodCode,
+    current.serverDate
+  );
+  return map.features
+    .map((feature) => mapFieldToCatalogField(feature.properties))
+    .sort((left, right) => compareFieldKeys(left.fieldKey, right.fieldKey));
+}
+
+function mapFieldToCatalogField(field: FieldSeasonMapPropertiesDto): FieldSeasonCatalogFieldDto {
+  return {
+    fieldId: field.fieldId,
+    fieldSeasonId: field.fieldSeasonId,
+    fieldKey: field.fieldKey,
+    fieldName: field.fieldName,
+    areaHa: field.areaHa,
+    cropName: field.cropName,
+    cropSowingDate: field.cropSowingDate,
+    koef_upper_limit: field.koef_upper_limit,
+    koef_optimum: field.koef_optimum,
+    koef_lower_limit: field.koef_lower_limit,
+    geometry: null
+  };
+}
+
+async function loadFieldStatusText(context: BotContext, field: FieldSeasonCatalogFieldDto): Promise<string> {
+  const current = await context.kornixClient.getCurrentContext(context.seasonYear);
+  const calculationRunId = current.currentAppliedCalculationRunId;
+  if (!calculationRunId) {
+    return unavailableFieldStatus(field, 'в KORNIX ещё нет применённого расчёта');
+  }
+
+  const [map, calculationRun] = await Promise.all([
+    context.kornixClient.getFieldSeasonMap(calculationRunId, current.defaultMethodCode, current.serverDate),
+    context.kornixClient.getCalculationRunStatus(calculationRunId)
+  ]);
+  const feature = map.features.find((item) => item.properties.fieldSeasonId === field.fieldSeasonId);
+  if (!feature) {
+    return unavailableFieldStatus(field, 'поле не найдено в текущем расчёте KORNIX');
+  }
+
+  const value = feature.properties;
+  return [
+    `Статус поля ${fieldNumber(field)}`,
+    `Дата: ${formatCalculationFinishedAt(calculationRun.finishedAt)}`,
+    `Статус: водный стресс ${formatOptionalNumber(value.water_stress_coefficient, 2)}`,
+    `Влага в почве: ${formatRootZoneMoisture(value)}`,
+    formatIrrigationRecommendation(value.recommended_irrigation_mm)
+  ].join('\n');
+}
+
+function unavailableFieldStatus(field: FieldSeasonCatalogFieldDto, reason = 'не удалось загрузить данные KORNIX'): string {
+  return [`Статус поля ${fieldNumber(field)}`, `Статус недоступен: ${reason}.`].join('\n');
+}
+
+function fieldActionKeyboard() {
+  return commandButtonKeyboard(
+    [
+      { text: 'Полив', command: '/water' },
+      { text: 'Осадки', command: '/rain' }
+    ],
+    2
+  );
+}
+
 function chooseFieldKeyboard() {
   return commandButtonKeyboard([{ text: 'Выбрать поле', command: '/fields' }], 1);
 }
@@ -552,6 +606,28 @@ function isDateInManagedScope(date: string, managedScope: KornixApprovalManagedS
   return date >= managedScope.dateFrom && date <= managedScope.dateTo;
 }
 
+function getFieldSortParts(fieldKey: string): number[] {
+  const primaryKey = fieldKey.split(';')[0]?.trim() ?? fieldKey;
+  const matches = primaryKey.match(/\d+/g);
+  return matches ? matches.map(Number) : [Number.MAX_SAFE_INTEGER];
+}
+
+function compareFieldKeys(leftKey: string, rightKey: string): number {
+  const leftParts = getFieldSortParts(leftKey);
+  const rightParts = getFieldSortParts(rightKey);
+  const length = Math.max(leftParts.length, rightParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftParts[index] ?? -1;
+    const rightPart = rightParts[index] ?? -1;
+    if (leftPart !== rightPart) {
+      return leftPart - rightPart;
+    }
+  }
+
+  return leftKey.localeCompare(rightKey, 'ru', { numeric: true });
+}
+
 function normalize(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase();
 }
@@ -575,7 +651,10 @@ function normalizeFieldNumber(value: string): string {
   return stripFieldPrefix(value).toLowerCase();
 }
 
-function formatArea(value: number): string {
+function formatArea(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) {
+    return 'нет данных';
+  }
   const rounded = Math.round(value * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
@@ -588,23 +667,58 @@ function formatMm(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-function formatMetric(value: number | null, unit: string): string {
-  return value === null ? 'нет данных' : `${formatMm(value)} ${unit}`;
+function formatOptionalNumber(value: number | null | undefined, maximumFractionDigits: number): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 'нет данных';
+  }
+  return new Intl.NumberFormat('ru-RU', {
+    useGrouping: false,
+    maximumFractionDigits
+  }).format(value);
 }
 
-function formatRecommendation(date: string | null, mm: number | null): string {
-  return !date || mm === null ? 'не требуется' : `${formatDisplayDate(date)}, ${formatMm(mm)} мм`;
+function formatRootZoneMoisture(value: FieldSeasonMapPropertiesDto): string {
+  const water = value.soil_water_content_mm;
+  const fieldCapacity = value.soil_field_capacity_water_mm;
+  if (
+    typeof water !== 'number' ||
+    !Number.isFinite(water) ||
+    typeof fieldCapacity !== 'number' ||
+    !Number.isFinite(fieldCapacity) ||
+    fieldCapacity <= 0
+  ) {
+    return 'нет данных';
+  }
+  return `${formatOptionalNumber((water / fieldCapacity) * 100, 0)}% НВ`;
 }
 
-function statusLabel(status: string): string {
-  return ({
-    ok: 'норма',
-    warning: 'требует внимания',
-    critical: 'критический',
-    no_data: 'нет данных',
-    not_calculated: 'не рассчитан',
-    calculation_failed: 'ошибка расчёта'
-  } as Record<string, string>)[status] ?? status;
+function formatIrrigationRecommendation(value: number | null | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return 'Полив не требуется';
+  }
+  return `Требуется полив ${formatOptionalNumber(value, 1)} мм`;
+}
+
+function formatCalculationFinishedAt(value: string | null | undefined): string {
+  if (!value) {
+    return 'нет данных';
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'нет данных';
+  }
+  const parts = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('day')}.${part('month')}.${part('year')}, ${part('hour')}:${part('minute')}`;
 }
 
 function formatDisplayDate(date: string): string {

@@ -6,6 +6,7 @@ import { parseCommand } from '../src/bot/commandParser.js';
 import type { BotContext } from '../src/bot/botContext.js';
 import type {
   FieldSeasonCatalogDto,
+  FieldSeasonMapPropertiesDto,
   KornixApprovalRequestDto,
   KornixApprovalSubmitResponseDto,
   KornixCurrentContextDto,
@@ -189,6 +190,37 @@ function precipitationResponseFixture(): KornixManualPrecipitationResponseDto {
   };
 }
 
+function mapFieldFixture(overrides: Partial<FieldSeasonMapPropertiesDto> = {}): FieldSeasonMapPropertiesDto {
+  return {
+    fieldId: 'field-1',
+    fieldSeasonId: 'field-season-1',
+    fieldKey: 'SP:1.1',
+    fieldName: 'SP:1.1',
+    areaHa: 12.5,
+    cropName: 'Пшеница',
+    cropSowingDate: null,
+    latestStatus: 'warning',
+    day: '2026-07-05',
+    soil_field_capacity_water_mm: 150,
+    soil_water_content_mm: 120,
+    water_stress_coefficient: 0.82,
+    koef_upper_limit: null,
+    koef_optimum: null,
+    koef_lower_limit: null,
+    precipitation_effective_daily_mm: 2.5,
+    irrigation_effective_daily_mm: 10,
+    recommended_irrigation_date: '2026-07-06',
+    recommended_irrigation_mm: 12,
+    dataQuality: {
+      calculationAvailable: true,
+      forcingComplete: true,
+      hasActiveMapping: true,
+      messages: []
+    },
+    ...overrides
+  };
+}
+
 function createContext(overrides: Partial<KornixClient> = {}): BotContext {
   const kornixClient = {
     getReadinessCurrent: async () => readinessFixture(),
@@ -197,27 +229,29 @@ function createContext(overrides: Partial<KornixClient> = {}): BotContext {
     getMethods: async () => methodsFixture(),
     getCurrentIrrigationLayer: async () => currentIrrigationLayerFixture(),
     getFieldSeasonMap: async () => ({
+      calculationRunId: 'run-1',
+      generatedAt: '2026-07-05T10:00:00+03:00',
       day: '2026-07-05',
       features: [
         {
-          properties: {
-            fieldSeasonId: 'field-season-1',
-            latestStatus: 'warning',
-            day: '2026-07-05',
-            soil_water_content_mm: 120,
-            precipitation_effective_daily_mm: 2.5,
-            irrigation_effective_daily_mm: 10,
-            recommended_irrigation_date: '2026-07-06',
-            recommended_irrigation_mm: 12,
-            dataQuality: {
-              calculationAvailable: true,
-              forcingComplete: true,
-              hasActiveMapping: true,
-              messages: []
-            }
-          }
+          properties: mapFieldFixture()
         }
       ]
+    }),
+    getCalculationRunStatus: async () => ({
+      calculationRunId: 'run-1',
+      runKind: 'operational',
+      status: 'completed',
+      organizationCode: 'SP',
+      seasonYear: 2026,
+      serverDate: '2026-07-05',
+      calculationWindow: { from: '2026-04-01', to: '2026-07-12', timezone: 'Europe/Moscow' },
+      operationalMethodSetCode: 'production',
+      defaultMethodCode: 'simple',
+      startedAt: '2026-07-05T09:00:00Z',
+      finishedAt: '2026-07-05T09:30:00Z',
+      warnings: [],
+      error: null
     }),
     submitWaterRegimeApproval: async () => approvalResponseFixture(),
     submitManualPrecipitation: async () => precipitationResponseFixture(),
@@ -282,13 +316,17 @@ describe('dispatchCommand', () => {
     const selectResponse = await dispatchCommand(parseCommand('1.1'), context);
     assert.match(selectResponse.text, /Выбрано поле 1\.1/);
     assert.match(selectResponse.text, /12.5 га, Пшеница/);
+    assert.match(selectResponse.text, /Статус поля 1\.1/);
+    assert.match(selectResponse.text, /Дата: 05\.07\.2026, 12:30/);
+    assert.match(selectResponse.text, /Статус: водный стресс 0,82/);
+    assert.match(selectResponse.text, /Влага в почве: 80% НВ/);
+    assert.match(selectResponse.text, /Требуется полив 12 мм/);
     assert.deepEqual(selectResponse.attachments, [
       {
         type: 'inline_keyboard',
         payload: {
           buttons: [
-            [{ type: 'callback', text: 'Полив', payload: '/water' }, { type: 'callback', text: 'Осадки', payload: '/rain' }],
-            [{ type: 'callback', text: 'Статус поля', payload: '/field-status' }]
+            [{ type: 'callback', text: 'Полив', payload: '/water' }, { type: 'callback', text: 'Осадки', payload: '/rain' }]
           ]
         }
       }
@@ -316,10 +354,119 @@ describe('dispatchCommand', () => {
     const response = await dispatchCommand(parseCommand('/field-status'), context);
 
     assert.match(response.text, /Статус поля 1\.1/);
-    assert.match(response.text, /Дата: 05\.07\.2026/);
-    assert.match(response.text, /Статус: требует внимания/);
-    assert.match(response.text, /Влага в почве: 120 мм/);
-    assert.match(response.text, /Рекомендуемый полив: 06\.07\.2026, 12 мм/);
+    assert.match(response.text, /Дата: 05\.07\.2026, 12:30/);
+    assert.match(response.text, /Статус: водный стресс 0,82/);
+    assert.match(response.text, /Влага в почве: 80% НВ/);
+    assert.match(response.text, /Требуется полив 12 мм/);
+    assert.doesNotMatch(response.text, /Эффективные осадки|Качество данных/);
+  });
+
+  it('lists only frontend map fields in numeric order without a 40-field limit', async () => {
+    const unorderedNumbers = ['4.16', '1.11', '4.3', '1.3', ...Array.from({ length: 37 }, (_, index) => `8.${index + 1}`)];
+    const context = createContext({
+      getFieldSeasonMap: async () => ({
+        calculationRunId: 'run-1',
+        generatedAt: '2026-07-05T10:00:00+03:00',
+        day: '2026-07-05',
+        features: unorderedNumbers.map((number, index) => ({
+          properties: mapFieldFixture({
+            fieldId: `field-${index}`,
+            fieldSeasonId: `field-season-${index}`,
+            fieldKey: `SP:${number}`,
+            fieldName: `SP:${number}`
+          })
+        }))
+      }),
+      getFieldSeasonCatalog: async () => ({
+        ...catalogFixture(),
+        fields: [...catalogFixture().fields, { ...catalogFixture().fields[0]!, fieldSeasonId: 'catalog-only', fieldKey: 'SP:0.1' }]
+      })
+    });
+
+    const response = await dispatchCommand(parseCommand('/fields'), context);
+    const buttons = (response.attachments as Array<{ payload: { buttons: Array<Array<{ text: string }>> } }>)[0]?.payload.buttons.flat() ?? [];
+
+    assert.equal(buttons.length, 41);
+    assert.deepEqual(buttons.slice(0, 4).map((button) => button.text), ['1.3', '1.11', '4.3', '4.16']);
+    assert.equal(buttons.some((button) => button.text === '0.1'), false);
+  });
+
+  it('shows no-irrigation and unavailable metric fallbacks without blocking field selection', async () => {
+    const context = createContext({
+      getFieldSeasonMap: async () => ({
+        calculationRunId: 'run-1',
+        generatedAt: '2026-07-05T10:00:00+03:00',
+        day: '2026-07-05',
+        features: [{
+          properties: mapFieldFixture({
+            water_stress_coefficient: null,
+            soil_field_capacity_water_mm: null,
+            recommended_irrigation_mm: null
+          })
+        }]
+      }),
+      getCalculationRunStatus: async () => {
+        throw new Error('status endpoint unavailable');
+      }
+    });
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    const unavailable = await dispatchCommand(parseCommand('/field 1.1'), context);
+
+    assert.match(unavailable.text, /Выбрано поле 1\.1/);
+    assert.match(unavailable.text, /Статус недоступен/);
+    assert.deepEqual((unavailable.attachments as Array<{ payload: { buttons: unknown[][] } }>)[0]?.payload.buttons.length, 1);
+
+    const noIrrigationContext = createContext({
+      getFieldSeasonMap: async () => ({
+        calculationRunId: 'run-1',
+        generatedAt: '2026-07-05T10:00:00+03:00',
+        day: '2026-07-05',
+        features: [{
+          properties: mapFieldFixture({
+            water_stress_coefficient: null,
+            soil_field_capacity_water_mm: null,
+            recommended_irrigation_mm: 0
+          })
+        }]
+      })
+    });
+    await dispatchCommand(parseCommand('/fields'), noIrrigationContext);
+    const noIrrigation = await dispatchCommand(parseCommand('/field 1.1'), noIrrigationContext);
+    assert.match(noIrrigation.text, /Статус: водный стресс нет данных/);
+    assert.match(noIrrigation.text, /Влага в почве: нет данных/);
+    assert.match(noIrrigation.text, /Полив не требуется/);
+  });
+
+  it('falls back to the catalog when there is no applied calculation', async () => {
+    const context = createContext({
+      getCurrentContext: async () => ({ ...contextFixture(), currentAppliedCalculationRunId: null })
+    });
+
+    const fields = await dispatchCommand(parseCommand('/fields'), context);
+    const selected = await dispatchCommand(parseCommand('/field 1.1'), context);
+
+    assert.equal(fields.text, 'Выберите поле');
+    assert.match(selected.text, /Выбрано поле 1\.1/);
+    assert.match(selected.text, /ещё нет применённого расчёта/);
+  });
+
+  it('keeps the field selected when it disappears from the current calculation map', async () => {
+    let mapCalls = 0;
+    const context = createContext({
+      getFieldSeasonMap: async () => ({
+        calculationRunId: 'run-1',
+        generatedAt: '2026-07-05T10:00:00+03:00',
+        day: '2026-07-05',
+        features: mapCalls++ === 0 ? [{ properties: mapFieldFixture() }] : []
+      })
+    });
+
+    await dispatchCommand(parseCommand('/fields'), context);
+    const selected = await dispatchCommand(parseCommand('/field 1.1'), context);
+
+    assert.match(selected.text, /Выбрано поле 1\.1/);
+    assert.match(selected.text, /поле не найдено в текущем расчёте/);
   });
 
   it('queues several fields and submits them in one approval', async () => {
@@ -328,7 +475,15 @@ describe('dispatchCommand', () => {
     assert.ok(first);
     const second = { ...first, fieldId: 'field-2', fieldSeasonId: 'field-season-2', fieldKey: 'SP:2.1', fieldName: 'SP:2.1' };
     const context = createContext({
-      getFieldSeasonCatalog: async () => ({ ...catalogFixture(), fields: [first, second] }),
+      getFieldSeasonMap: async () => ({
+        calculationRunId: 'run-1',
+        generatedAt: '2026-07-05T10:00:00+03:00',
+        day: '2026-07-05',
+        features: [
+          { properties: mapFieldFixture() },
+          { properties: mapFieldFixture({ fieldId: 'field-2', fieldSeasonId: 'field-season-2', fieldKey: 'SP:2.1', fieldName: 'SP:2.1' }) }
+        ]
+      }),
       getCurrentContext: async () => ({
         ...contextFixture(),
         managedScope: { ...contextFixture().managedScope, fieldSeasonIds: ['field-season-1', 'field-season-2'] }

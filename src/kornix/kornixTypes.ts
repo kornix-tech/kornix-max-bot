@@ -114,7 +114,7 @@ export type FieldSeasonCatalogFieldDto = {
   fieldSeasonId: string;
   fieldKey: string;
   fieldName: string;
-  areaHa: number;
+  areaHa: number | null;
   cropName: string | null;
   cropSowingDate: string | null;
   koef_upper_limit: number | null;
@@ -131,10 +131,21 @@ export type FieldSeasonCatalogDto = {
 };
 
 export type FieldSeasonMapPropertiesDto = {
+  fieldId: string;
   fieldSeasonId: string;
+  fieldKey: string;
+  fieldName: string;
+  areaHa: number | null;
+  cropName: string | null;
+  cropSowingDate: string | null;
   latestStatus: 'ok' | 'warning' | 'critical' | 'no_data' | 'not_calculated' | 'calculation_failed';
   day: string;
+  soil_field_capacity_water_mm: number | null;
   soil_water_content_mm: number | null;
+  water_stress_coefficient: number | null;
+  koef_upper_limit: number | null;
+  koef_optimum: number | null;
+  koef_lower_limit: number | null;
   precipitation_effective_daily_mm: number | null;
   irrigation_effective_daily_mm: number | null;
   recommended_irrigation_date: string | null;
@@ -148,8 +159,26 @@ export type FieldSeasonMapPropertiesDto = {
 };
 
 export type FieldSeasonMapDto = {
+  calculationRunId: CalculationRunId;
+  generatedAt: string;
   day: string;
   features: Array<{ properties: FieldSeasonMapPropertiesDto }>;
+};
+
+export type KornixCalculationRunStatusDto = {
+  calculationRunId: CalculationRunId;
+  runKind: string;
+  status: string;
+  organizationCode: string | null;
+  seasonYear: number;
+  serverDate: string;
+  calculationWindow: CalculationWindowDto;
+  operationalMethodSetCode: string;
+  defaultMethodCode: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  warnings: ApiWarningDto[];
+  error: JsonObject | null;
 };
 
 export type KornixCurrentIrrigationLayerCellDto = {
