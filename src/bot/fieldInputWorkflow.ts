@@ -381,7 +381,7 @@ async function submitWater(context: BotContext, pendingInputs: PendingFieldInput
     (previous ? updated : added).push(diffEntry(pending));
   }
 
-  const response = await context.kornixClient.submitWaterRegimeApproval({
+  await context.kornixClient.submitWaterRegimeApproval({
     seasonYear: context.seasonYear,
     baseCalculationRunId: currentContext.currentAppliedCalculationRunId,
     approvalClientGeneratedAt: new Date().toISOString(),
@@ -394,17 +394,13 @@ async function submitWater(context: BotContext, pendingInputs: PendingFieldInput
     }
   });
 
-  return [...pendingInputs.flatMap((pending) => [
+  return pendingInputs.flatMap((pending) => [
     'Полив отправлен в KORNIX.',
     `Поле: ${fieldNumber(pending.field)}`,
     `Дата: ${formatDisplayDate(pending.date)}`,
     `Полив: ${formatMm(pending.mm)} мм`,
     ''
-  ]),
-    `approvalStatus: ${response.approvalStatus}`,
-    `calculationStatus: ${response.calculationStatus}`,
-    `approvalBatchId: ${response.approvalBatchId}`
-  ].join('\n');
+  ]).join('\n').trimEnd();
 }
 
 async function submitRain(context: BotContext, pendingInputs: PendingFieldInput[]): Promise<string> {
@@ -431,7 +427,7 @@ async function submitRain(context: BotContext, pendingInputs: PendingFieldInput[
     return `Осадки не отправлены: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
   }
 
-  const response = await context.kornixClient.submitManualPrecipitation({
+  await context.kornixClient.submitManualPrecipitation({
     seasonYear: context.seasonYear,
     baseCalculationRunId: currentContext.currentAppliedCalculationRunId,
     approvalClientGeneratedAt: new Date().toISOString(),
@@ -444,17 +440,13 @@ async function submitRain(context: BotContext, pendingInputs: PendingFieldInput[
     }
   });
 
-  return [...pendingInputs.flatMap((pending) => [
+  return pendingInputs.flatMap((pending) => [
     'Осадки отправлены в KORNIX.',
     `Поле: ${fieldNumber(pending.field)}`,
     `Дата: ${formatDisplayDate(pending.date)}`,
     `Осадки: ${formatMm(pending.mm)} мм`,
     ''
-  ]),
-    `approvalStatus: ${response.approvalStatus}`,
-    `calculationStatus: ${response.calculationStatus}`,
-    `precipitationBatchId: ${response.precipitationBatchId}`
-  ].join('\n');
+  ]).join('\n').trimEnd();
 }
 
 function formatSubmitError(error: unknown, kind: InputKind): string {

@@ -343,7 +343,9 @@ describe('dispatchCommand', () => {
         }
       }
     ]);
-    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Полив отправлен/);
+    const confirmationResponse = await dispatchCommand(parseCommand('/confirm'), context);
+    assert.match(confirmationResponse.text, /Полив отправлен/);
+    assert.doesNotMatch(confirmationResponse.text, /approvalStatus|calculationStatus|approvalBatchId/);
   });
 
   it('shows selected field status from the frontend map endpoint', async () => {
@@ -634,7 +636,9 @@ describe('dispatchCommand', () => {
     await dispatchCommand(parseCommand('/fields'), context);
     await dispatchCommand(parseCommand('/field 1'), context);
     assert.match((await dispatchCommand(parseCommand('/rain 2026-07-05 12.5'), context)).text, /Осадки: 12.5 мм/);
-    assert.match((await dispatchCommand(parseCommand('/confirm'), context)).text, /Осадки отправлены/);
+    const confirmationResponse = await dispatchCommand(parseCommand('/confirm'), context);
+    assert.match(confirmationResponse.text, /Осадки отправлены/);
+    assert.doesNotMatch(confirmationResponse.text, /approvalStatus|calculationStatus|precipitationBatchId/);
 
     assert.equal(submissions.length, 1);
     const submitted = submissions[0];
