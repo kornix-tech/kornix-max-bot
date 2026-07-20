@@ -123,8 +123,9 @@ export class MaxClient {
   }
 
   answerCallback(callbackId: string, text?: string, options: MaxSendMessageOptions = {}): Promise<MaxAnswerCallbackResponse> {
-    const payload: MaxAnswerCallbackRequest = text ? { notification: text } : {};
-    if (text && options.notify === false) {
+    const notification = text?.trim() || 'Готово';
+    const payload: MaxAnswerCallbackRequest = { notification };
+    if (options.notify === false) {
       payload.message = null;
     }
     return this.request<MaxAnswerCallbackResponse>('/answers', {

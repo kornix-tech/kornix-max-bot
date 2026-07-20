@@ -112,6 +112,20 @@ describe('MaxClient', () => {
     assert.equal(response.success, true);
   });
 
+  it('always sends a notification when acknowledging a callback', async () => {
+    mockPool
+      .intercept({
+        path: '/answers?callback_id=callback-2',
+        method: 'POST',
+        body: JSON.stringify({ notification: 'Готово' })
+      })
+      .reply(200, { success: true });
+
+    const response = await createClient().answerCallback('callback-2');
+
+    assert.equal(response.success, true);
+  });
+
   it('sends inline keyboard attachments with chat messages', async () => {
     const attachments = [
       {
