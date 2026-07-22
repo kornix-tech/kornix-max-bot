@@ -95,13 +95,12 @@ export default function App() {
 
   async function openForm(type: 'irrigation' | 'precipitation', preferred?: Field) {
     await run(async () => {
-      const [nextFields, nextMethods] = await Promise.all([
-        fields.length ? Promise.resolve(fields) : api.fields(),
-        type === 'irrigation' && !methods ? api.methods() : Promise.resolve(methods)
-      ]);
+      const nextFields = fields.length ? fields : await api.fields();
       setFields(preferred ? [preferred, ...nextFields.filter((item) => item.fieldSeasonId !== preferred.fieldSeasonId)] : nextFields);
-      if (nextMethods) setMethods(nextMethods);
       setView(type);
+      if (type === 'irrigation' && !methods) {
+        void api.methods().then(setMethods).catch((error) => setMessage(errorMessage(error)));
+      }
     });
   }
 
@@ -127,7 +126,7 @@ export default function App() {
       <main>
         {message && <div className="notice error" role="alert">{message}</div>}
         {busy && <div className="progress" aria-label="Загрузка" />}
-        {view === 'home' && <Home context={context} readiness={readiness} draft={draft} onFields={openFields} onForm={openForm} onMethods={() => run(async () => { setMethods(await api.methods()); setView('methods'); })} />}
+        {view === 'home' && <Home context={context} readiness={readiness} draft={draft} onFields={openFields} onForm={openForm} />}
         {view === 'fields' && <Fields fields={fields} onSelect={openField} />}
         {view === 'field' && fieldDetails && <FieldCard details={fieldDetails} onForm={openForm} />}
         {(view === 'irrigation' || view === 'precipitation') && (
@@ -152,7 +151,6 @@ export default function App() {
           setView('result');
         })} />}
         {view === 'result' && result && <Result result={result} onHome={() => { setResult(null); setView('home'); void loadHome(); }} />}
-        {view === 'methods' && <MethodsView methods={methods} />}
       </main>
     </div>
   );
@@ -164,7 +162,6 @@ function Home(props: {
   draft: Draft | null;
   onFields(): void;
   onForm(type: 'irrigation' | 'precipitation'): void;
-  onMethods(): void;
 }) {
   return (
     <>
@@ -174,16 +171,14 @@ function Home(props: {
         <p>{props.context?.fieldCount ?? '—'} участков · данные на {formatDate(props.context?.serverDate)}</p>
       </section>
       <section className="metric-grid" aria-label="Сводка">
-        <Metric label="Готовность данных" value={statusLabel(props.readiness?.status)} tone={props.readiness?.status === 'pass' ? 'good' : 'warn'} />
+        <Metric label="Последний расчёт" value={formatDateTimeMoscow(props.context?.lastCalculationFinishedAt)} />
         <Metric label="Статус сервиса" value={statusLabel(props.readiness?.productionStatus)} tone={props.readiness?.productionStatus === 'ready' ? 'good' : 'warn'} />
-        <Metric label="Последний расчёт" value={props.context?.currentAppliedCalculationRunId ? 'Доступен' : 'Нет данных'} />
         <Metric label="Подготовлено" value={`${props.draft?.items.length ?? 0} изменений`} />
       </section>
       <section className="action-grid">
         <button className="action-card" onClick={props.onFields}><span>▦</span><b>Мои участки</b><small>Статус и данные</small></button>
         <button className="action-card" onClick={() => props.onForm('irrigation')}><span>◉</span><b>Добавить полив</b><small>Факт или план</small></button>
         <button className="action-card" onClick={() => props.onForm('precipitation')}><span>⌁</span><b>Добавить осадки</b><small>Ручные данные</small></button>
-        <button className="action-card" onClick={props.onMethods}><span>≋</span><b>Методы полива</b><small>Доступные модели</small></button>
       </section>
     </>
   );
@@ -226,6 +221,9 @@ function OperationForm(props: {
   const [date, setDate] = useState(props.context?.serverDate ?? new Date().toISOString().slice(0, 10));
   const [millimeters, setMillimeters] = useState('');
   const [methodCode, setMethodCode] = useState(props.methods?.defaultMethodCode ?? '');
+  useEffect(() => {
+    if (!methodCode && props.methods?.defaultMethodCode) setMethodCode(props.methods.defaultMethodCode);
+  }, [methodCode, props.methods?.defaultMethodCode]);
   const mm = Number(millimeters.replace(',', '.'));
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -258,10 +256,6 @@ function Result({ result, onHome }: { result: SubmitResult; onHome(): void }) {
   return <section className="confirm-card"><div className={`confirm-icon ${result.status}`}>{result.status === 'success' ? '✓' : '!'}</div><h2>{title}</h2><p>Успешно: {result.successfulItemIds.length}. Отклонено: {result.failed.length}.</p>{result.failed.length > 0 && <ul>{result.failed.map((item) => <li key={item.itemId}>{item.message}</li>)}</ul>}<button onClick={onHome}>На главный экран</button></section>;
 }
 
-function MethodsView({ methods }: { methods: Methods | null }) {
-  return <section className="list">{methods?.methods.map((method) => <article className="list-card static" key={method.methodCode}><div><b>{method.label}</b><span>{method.methodCode}</span></div>{method.isDefault && <span className="tag">По умолчанию</span>}</article>) ?? <Empty text="Методы недоступны." />}</section>;
-}
-
 function Unlinked({ identity, onOpen, development }: { identity: Exclude<Identity, { status: 'linked' }>; onOpen(url: string): void; development: boolean }) {
   const unavailable = identity.status === 'temporarily_unavailable';
   return <div className="center-page">{development && <div className="dev-banner">Режим разработки</div>}<div className="logo">P360</div><span className="eyebrow">POLIV360</span><h1>{unavailable ? 'Сервис временно недоступен' : 'Подключите POLIV360'}</h1><p>{unavailable ? 'Не удалось проверить связь аккаунта. Попробуйте позднее.' : 'Ваш аккаунт MAX пока не связан с аккаунтом POLIV360.'}</p>{identity.linkUrl && <button onClick={() => onOpen(identity.linkUrl!)}>Подключить аккаунт</button>}</div>;
@@ -272,8 +266,15 @@ function StatusPage({ title, text, action, onAction }: { title: string; text: st
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) { return <article className="metric-card"><span>{label}</span><b className={tone}>{value}</b></article>; }
 function Row({ label, value }: { label: string; value: string }) { return <div className="detail-row"><span>{label}</span><b>{value}</b></div>; }
 function Empty({ text }: { text: string }) { return <div className="empty"><div>○</div><p>{text}</p></div>; }
-function titleFor(view: View) { return ({ home: 'Обзор', fields: 'Мои участки', field: 'Участок', irrigation: 'Добавить полив', precipitation: 'Добавить осадки', draft: 'Изменения', confirm: 'Подтверждение', result: 'Результат', methods: 'Методы полива' } as const)[view]; }
+function titleFor(view: View) { return ({ home: 'Обзор', fields: 'Мои участки', field: 'Участок', irrigation: 'Добавить полив', precipitation: 'Добавить осадки', draft: 'Изменения', confirm: 'Подтверждение', result: 'Результат' } as const)[view]; }
 function formatDate(value?: string | null) { if (!value) return '—'; const [year, month, day] = value.slice(0, 10).split('-'); return year && month && day ? `${day}.${month}.${year}` : value; }
+function formatDateTimeMoscow(value?: string | null) {
+  if (!value) return 'Нет данных';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Нет данных' : new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  }).format(date);
+}
 function formatArea(value: number | null) { return value === null ? 'площадь не указана' : `${formatNumber(value)} га`; }
 function formatNumber(value?: number | null, digits = 1) { return typeof value === 'number' && Number.isFinite(value) ? new Intl.NumberFormat('ru-RU', { maximumFractionDigits: digits }).format(value) : 'Нет данных'; }
 function percentage(value?: number | null, capacity?: number | null) { return typeof value === 'number' && typeof capacity === 'number' && capacity > 0 ? Math.round(value / capacity * 100) : null; }

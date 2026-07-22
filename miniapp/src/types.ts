@@ -18,6 +18,7 @@ export type Context = {
   currentOperationalStatus: string;
   currentAppliedStatus: string;
   currentAppliedCalculationRunId: string | null;
+  lastCalculationFinishedAt: string | null;
   frontendMode: string;
   submitAllowed: boolean;
   fieldCount: number;

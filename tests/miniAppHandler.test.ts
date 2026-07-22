@@ -36,6 +36,7 @@ const context = {
 let submitCount = 0;
 const client = {
   getCurrentContext: async () => context,
+  getCalculationRunStatus: async () => ({ calculationRunId: 'run-1', finishedAt: '2026-07-22T10:00:00Z' }),
   getFieldSeasonMap: async () => ({ calculationRunId: 'run-1', generatedAt: '2026-07-22T10:00:00Z', day: '2026-07-22', features: [{ properties: { ...field, latestStatus: 'ok', day: '2026-07-22', soil_field_capacity_water_mm: 150, soil_water_content_mm: 120, water_stress_coefficient: .9, precipitation_effective_daily_mm: 0, irrigation_effective_daily_mm: 0, recommended_irrigation_date: null, recommended_irrigation_mm: null, dataQuality: { calculationAvailable: true, forcingComplete: true, hasActiveMapping: true, messages: [] } } }] }),
   getFieldSeasonCatalog: async () => ({ organizationCode: 'SP', seasonYear: 2026, generatedAt: '', fields: [field] }),
   getMethods: async () => ({ defaultMethodCode: 'simple', operationalMethodSetCode: 'prod', methods: [{ methodCode: 'simple', label: 'Простой', methodFamily: 'fao', version: '1', isDefault: true, isCandidate: false, isRequired: true }] }),
@@ -86,6 +87,13 @@ describe('Mini App HTTP API', () => {
 
   it('rejects API requests without a session', async () => {
     assert.equal((await json('/miniapp/api/v1/fields')).response.status, 401);
+  });
+
+  it('returns the completion time of the applied calculation', async () => {
+    const token = await authToken();
+    const { response, body } = await json('/miniapp/api/v1/context', { headers: { Authorization: `Bearer ${token}` } });
+    assert.equal(response.status, 200);
+    assert.equal(body.lastCalculationFinishedAt, '2026-07-22T10:00:00Z');
   });
 
   it('loads fields and validates draft input at the server boundary', async () => {

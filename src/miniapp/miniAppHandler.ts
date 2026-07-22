@@ -131,7 +131,11 @@ export function createMiniAppHandler(options: Options): HttpHandler {
       return;
     }
     if (request.method === 'GET' && url.pathname === '/miniapp/api/v1/context') {
-      json(response, 200, await options.kornixClient.getCurrentContext(identity.seasonYear));
+      const context = await options.kornixClient.getCurrentContext(identity.seasonYear);
+      const calculation = context.currentAppliedCalculationRunId
+        ? await options.kornixClient.getCalculationRunStatus(context.currentAppliedCalculationRunId)
+        : null;
+      json(response, 200, { ...context, lastCalculationFinishedAt: calculation?.finishedAt ?? null });
       return;
     }
     if (request.method === 'GET' && url.pathname === '/miniapp/api/v1/methods') {
