@@ -5,12 +5,15 @@ WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml ./
+COPY miniapp/package.json ./miniapp/package.json
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY miniapp ./miniapp
 RUN pnpm run build
 
 FROM node:22-alpine AS runtime
@@ -20,10 +23,12 @@ WORKDIR /app
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile && pnpm store prune
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY miniapp/package.json ./miniapp/package.json
+RUN pnpm install --prod --filter kornix-max-bot --frozen-lockfile && pnpm store prune
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-miniapp ./dist-miniapp
 
 EXPOSE 3000
 

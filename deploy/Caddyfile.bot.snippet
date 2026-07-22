@@ -8,3 +8,14 @@ handle /max/webhook {
 		header_up X-Forwarded-Proto {scheme}
 	}
 }
+
+# Mini App и его same-origin API обслуживаются тем же контейнером.
+@max_miniapp path /miniapp /miniapp/*
+handle @max_miniapp {
+	reverse_proxy kornix-max-bot:3000 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

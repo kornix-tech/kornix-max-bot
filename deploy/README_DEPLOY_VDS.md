@@ -30,6 +30,9 @@ nano .env.production
 - `KORNIX_SERVICE_TOKEN`
 - `MAX_BOT_TOKEN`
 - `MAX_WEBHOOK_SECRET`
+- `MAX_MINIAPP_SESSION_SECRET` (минимум 32 символа, только если Mini App включено)
+
+Сначала оставить `MAX_MINIAPP_ENABLED=false`. Включать флаг только после реализации backend-привязки MAX user → POLIV360 user и настройки HTTPS URL.
 
 Не коммитить `.env.production` и не публиковать секреты в логах, issue, PR или документации.
 
@@ -141,6 +144,11 @@ handle /max/webhook {
 		header_up X-Forwarded-Proto {scheme}
 	}
 }
+
+@max_miniapp path /miniapp /miniapp/*
+handle @max_miniapp {
+	reverse_proxy kornix-max-bot:3000
+}
 ```
 
 Важно: использовать `handle`, не `handle_path`, чтобы путь дошёл до приложения как `/max/webhook`.
@@ -171,6 +179,17 @@ X-Max-Bot-Api-Secret: <MAX_WEBHOOK_SECRET>
 
 ## 10. Откат
 
+Быстрое отключение Mini App без остановки бота:
+
+```text
+1. Установить MAX_MINIAPP_ENABLED=false.
+2. Перезапустить только kornix-max-bot.
+3. Удалить URL Mini App в настройках MAX.
+4. Проверить GET /health и POST /max/webhook.
+```
+
+Полный план отката и команды `git revert` находятся в `docs/MINIAPP.md`.
+
 Остановить только bot service:
 
 ```bash
@@ -187,3 +206,5 @@ docker compose -f docker-compose.bot.yml down
 - Не включать write-команды.
 - Сначала проверить read-only `/start` и `/status`.
 - Не менять backend `meteo` и frontend `kornix_site` для запуска бота.
+- Не включать `MAX_MINIAPP_DEV_MODE` в production.
+- Не включать Mini App до появления production `MaxIdentityResolver`.
