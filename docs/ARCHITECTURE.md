@@ -6,12 +6,12 @@
 
 ```text
 MAX Messenger
+    |-- Webhook: POST /max/webhook -> bot handlers
     |
-    v
-Webhook: POST /max/webhook
-    |
-    v
-kornix-max-bot
+    `-- Mini App: GET /miniapp/* -> validated session -> /miniapp/api/v1/*
+                                                       |
+                                                       v
+                                                  KornixClient
     |
     v
 KORNIX Backend API /api/v2/*
@@ -74,6 +74,16 @@ reverse proxy
 ```
 
 The bot should be independently deployable and restartable. Backend and worker remain the only components that know DB schema and calculation internals.
+
+## Mini App Boundary
+
+- `src/miniapp/auth` verifies original MAX `initData` and signs a short-lived bearer token.
+- The token stays in frontend memory and is never written to `localStorage`.
+- `MaxIdentityResolver` is the only allowed MAX user → POLIV360 user boundary.
+- The production default resolver returns `not_linked`; it never grants the shared service tenant to an unknown MAX user.
+- `src/miniapp/miniAppHandler.ts` owns the isolated API, in-memory drafts, idempotency and static delivery.
+- `src/kornix/operationService.ts` is shared by the chat bot and Mini App for irrigation and precipitation submissions.
+- `MAX_MINIAPP_ENABLED=false` removes both the UI and Mini App API while `/health` and `/max/webhook` keep working.
 
 ## Data Boundary
 

@@ -43,6 +43,24 @@ Error shape:
 }
 ```
 
+## Mini App API
+
+Namespace `/miniapp/api/v1/*` belongs to this service and never reaches the MAX webhook handler. All responses use `Cache-Control: no-store`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/auth/max` | Validate original MAX `initData`, resolve identity, return a short-lived signed token |
+| POST | `/auth/logout` | Revoke the current Mini App session |
+| GET | `/me` | Return `linked`, `not_linked`, `inactive` or `temporarily_unavailable` |
+| GET | `/status`, `/context`, `/readiness`, `/methods` | Existing `KornixClient` reads |
+| GET | `/fields`, `/fields/:fieldSeasonId` | Server-filtered fields and current field state |
+| POST | `/drafts` | Replace the current in-memory draft |
+| GET/DELETE | `/drafts/current` | Read or cancel the draft |
+| POST/DELETE | `/drafts/current/items[/:itemId]` | Add or remove a validated item |
+| POST | `/drafts/current/submit` | Confirm with an `Idempotency-Key` header |
+
+Except for `/auth/max`, every endpoint requires `Authorization: Bearer <short-lived-session>`. The frontend never supplies a POLIV360 user or tenant identifier.
+
 ## Endpoints Main
 
 ### GET `/api/v2/health`
