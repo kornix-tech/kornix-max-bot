@@ -10,6 +10,8 @@
   --brand: #255b2d;
   --brand-strong: #0c301f;
   --brand-soft: #edf5e5;
+  --irrigation-soft: #e5f2f8;
+  --precipitation-soft: #eff6f9;
   --accent: #d95f0b;
   --danger: #9f1d20;
   --warning: #8a5200;
@@ -54,6 +56,9 @@ h1, h2, h3, p { margin-top: 0; }
 .action-card > span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--brand-soft); color: var(--brand); font-size: 20px; }
 .action-card b { margin-top: auto; font-size: 15px; }
 .action-card small { margin-top: 3px; color: var(--muted); }
+.action-card.fields { grid-column: 1 / -1; min-height: 112px; }
+.action-card.irrigation { background: var(--irrigation-soft); border-color: #c8dfe9; }
+.action-card.precipitation { background: var(--precipitation-soft); border-color: #d5e5ec; }
 
 .list { display: grid; gap: 10px; }
 .list-card, .draft-card, .details-card, .form-card, .confirm-card { width: 100%; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
@@ -71,9 +76,11 @@ button.list-card { min-height: 80px; display: flex; justify-content: space-betwe
 .sticky-actions, .stack-actions { display: grid; gap: 10px; margin-top: 14px; }
 .sticky-actions { grid-template-columns: 1fr 1fr; position: sticky; bottom: calc(10px + env(safe-area-inset-bottom)); }
 
-.form-card { display: grid; gap: 18px; }
-label { display: grid; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
-input, select { width: 100%; min-height: 50px; border: 1px solid var(--line); border-radius: 13px; padding: 10px 12px; background: var(--bg); color: var(--text); font-size: 16px; }
+.form-card { min-width: 0; display: grid; gap: 18px; }
+.form-card.irrigation { background: var(--irrigation-soft); border-color: #c8dfe9; }
+.form-card.precipitation { background: var(--precipitation-soft); border-color: #d5e5ec; }
+label { min-width: 0; display: grid; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
+input, select { width: 100%; min-width: 0; max-width: 100%; min-height: 50px; border: 1px solid var(--line); border-radius: 13px; padding: 10px 12px; background: var(--surface); color: var(--text); font-size: 16px; }
 input:focus, select:focus { outline: 3px solid color-mix(in srgb, var(--brand) 25%, transparent); border-color: var(--brand); }
 
 .draft-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -106,7 +113,6 @@ input:focus, select:focus { outline: 3px solid color-mix(in srgb, var(--brand) 2
 @media (min-width: 560px) {
   .app-shell { padding-left: 24px; padding-right: 24px; }
   .dev-banner { margin-left: -24px; margin-right: -24px; }
-  .action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

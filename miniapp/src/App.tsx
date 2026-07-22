@@ -164,9 +164,9 @@ function Home(props: {
         <Metric label="Подготовлено" value={`${props.draft?.items.length ?? 0} изменений`} />
       </section>
       <section className="action-grid">
-        <button className="action-card" onClick={props.onFields}><span>▦</span><b>Мои участки</b><small>Статус и данные</small></button>
-        <button className="action-card" onClick={() => props.onForm('irrigation')}><span>◉</span><b>Добавить полив</b><small>Факт или план</small></button>
-        <button className="action-card" onClick={() => props.onForm('precipitation')}><span>⌁</span><b>Добавить осадки</b><small>Ручные данные</small></button>
+        <button className="action-card fields" onClick={props.onFields}><span>▦</span><b>Мои участки</b><small>Статус и данные</small></button>
+        <button className="action-card irrigation" onClick={() => props.onForm('irrigation')}><span>◉</span><b>Добавить полив</b><small>Факт или план</small></button>
+        <button className="action-card precipitation" onClick={() => props.onForm('precipitation')}><span>⌁</span><b>Добавить осадки</b><small>Ручные данные</small></button>
       </section>
     </>
   );
@@ -214,7 +214,7 @@ function OperationForm(props: {
     if (!fieldId || !date || !Number.isFinite(mm) || mm <= 0 || mm > 500) return;
     props.onSubmit({ type: props.type, fieldId, date, millimeters: mm, ...(props.type === 'irrigation' && methodCode ? { methodCode } : {}) });
   }
-  return <form className="form-card" onSubmit={submit}>
+  return <form className={`form-card ${props.type}`} onSubmit={submit}>
     <label>Участок<select value={fieldId} onChange={(event) => setFieldId(event.target.value)} required>{props.fields.map((field) => <option key={field.fieldSeasonId} value={field.fieldSeasonId}>{field.fieldName || field.fieldKey}</option>)}</select></label>
     <label>Дата<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label>
     <label>Количество, мм<input inputMode="decimal" type="number" min="0.1" max="500" step="0.1" placeholder="Например, 12.5" value={millimeters} onChange={(event) => setMillimeters(event.target.value)} required /></label>

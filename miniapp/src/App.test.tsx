@@ -62,6 +62,9 @@ describe('Mini App interface', () => {
     expect(container.textContent).not.toContain('Готовность данных');
     expect(container.textContent).not.toContain('Методы полива');
     expect([...container.querySelectorAll('.metric-card')].map((item) => item.textContent)).toEqual(['Подготовлено0 изменений']);
+    expect(container.querySelector('.action-card.fields')).not.toBeNull();
+    expect(container.querySelector('.action-card.irrigation')).not.toBeNull();
+    expect(container.querySelector('.action-card.precipitation')).not.toBeNull();
     const button = [...container.querySelectorAll('button')].find((item) => item.textContent?.includes('Мои участки'));
     await act(async () => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     await vi.waitFor(() => expect(container.textContent).toContain('Участок 1.1'));
@@ -87,6 +90,7 @@ describe('Mini App interface', () => {
     expect(container.textContent).not.toContain('Внутренняя ошибка Mini App');
     expect(requests.some((url) => url.endsWith('/methods'))).toBe(false);
     expect(container.textContent).toContain('Метод полива');
+    expect(container.querySelector('.form-card.irrigation')).not.toBeNull();
   });
 
   it('shows no water stress when the coefficient is one', async () => {
