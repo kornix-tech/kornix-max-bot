@@ -38,7 +38,7 @@ export async function processMaxWebhook(options: MaxWebhookProcessOptions): Prom
   }
 
   for (const update of updates) {
-    const incoming = extractTextMessage(update) ?? extractCallbackCommand(update);
+    const incoming = extractTextMessage(update) ?? extractCallbackCommand(update) ?? extractBotStarted(update);
     if (!incoming) {
       options.logger.info('max_webhook_ignored', {
         requestId: options.requestId,
@@ -108,6 +108,15 @@ export function extractCallbackCommand(update: MaxUpdate): IncomingTextMessage |
     return null;
   }
   return { update, userId, chatId, text, callbackId: update.callback.callback_id ?? null };
+}
+
+export function extractBotStarted(update: MaxUpdate): IncomingTextMessage | null {
+  const updateType = update.update_type ?? update.updateType;
+  const userId = update.user?.user_id ?? update.user?.id ?? null;
+  if (updateType !== 'bot_started' || userId === null) {
+    return null;
+  }
+  return { update, userId, chatId: update.chat_id ?? null, text: '/start', callbackId: null };
 }
 
 async function handleIncomingTextMessage(

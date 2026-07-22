@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { extractCallbackCommand, extractTextMessage, parseUpdates, processMaxWebhook } from '../src/max/maxWebhook.js';
+import { extractBotStarted, extractCallbackCommand, extractTextMessage, parseUpdates, processMaxWebhook } from '../src/max/maxWebhook.js';
 import { ConversationStateStore } from '../src/bot/conversationState.js';
 import type { KornixClient } from '../src/kornix/kornixClient.js';
 import type { MaxClient } from '../src/max/maxClient.js';
@@ -169,18 +169,11 @@ describe('maxWebhook', () => {
     assert.deepEqual(result, { ok: true, handled: true });
     assert.equal(sent.length, 1);
     assert.equal(sent[0]?.target, 'chat');
-    assert.match(sent[0]?.text ?? '', /Нажмите кнопку/);
-    assert.deepEqual(sent[0]?.attachments, [
-      {
-        type: 'inline_keyboard',
-        payload: {
-          buttons: [[{ type: 'callback', text: 'Выбрать поле', payload: '/fields' }]]
-        }
-      }
-    ]);
+    assert.match(sent[0]?.text ?? '', /кнопку «Открыть»/);
+    assert.equal(sent[0]?.attachments, undefined);
   });
 
-  it('dispatches callback commands and sends keyboard replies', async () => {
+  it('hides old callback commands behind the Mini App guide', async () => {
     const sent: SentMessage[] = [];
     const result = await processMaxWebhook({
       rawBody: JSON.stringify(callbackUpdate('/fields')),
@@ -217,21 +210,16 @@ describe('maxWebhook', () => {
 
     assert.deepEqual(result, { ok: true, handled: true });
     assert.equal(sent.length, 1);
-    assert.equal(sent[0]?.text, 'Выберите поле');
-    assert.deepEqual(sent[0]?.attachments, [
-      {
-        type: 'inline_keyboard',
-        payload: {
-          buttons: [[{ type: 'callback', text: '1.1', payload: '/field 1.1' }]]
-        }
-      }
-    ]);
+    assert.match(sent[0]?.text ?? '', /Все функции доступны только в Mini App/);
+    assert.equal(sent[0]?.attachments, undefined);
   });
 
-  it('ignores unsupported update types with 200-compatible result', async () => {
+  it('shows the Mini App guide when the user opens the bot', async () => {
     const sent: SentMessage[] = [];
+    const update = { update_type: 'bot_started', user: { user_id: 'user-1' } } as MaxUpdate;
+    assert.equal(extractBotStarted(update)?.text, '/start');
     const result = await processMaxWebhook({
-      rawBody: JSON.stringify({ update_type: 'bot_started', user: { user_id: 'user-1' } }),
+      rawBody: JSON.stringify(update),
       requestId: 'req-1',
       seasonYear: 2026,
       kornixClient: createKornixClient(),
@@ -240,11 +228,13 @@ describe('maxWebhook', () => {
       logger: logger()
     });
 
-    assert.deepEqual(result, { ok: true, handled: false, reason: 'no_text_message' });
-    assert.equal(sent.length, 0);
+    assert.deepEqual(result, { ok: true, handled: true });
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0]?.target, 'user');
+    assert.match(sent[0]?.text ?? '', /кнопку «Открыть»/);
   });
 
-  it('sends a friendly message when KORNIX API fails', async () => {
+  it('does not call KORNIX for hidden legacy commands', async () => {
     const sent: SentMessage[] = [];
     const result = await processMaxWebhook({
       rawBody: JSON.stringify(messageUpdate('/status')),
@@ -257,6 +247,6 @@ describe('maxWebhook', () => {
     });
 
     assert.deepEqual(result, { ok: true, handled: true });
-    assert.match(sent[0]?.text ?? '', /Не удалось получить данные KORNIX/);
+    assert.match(sent[0]?.text ?? '', /Все функции доступны только в Mini App/);
   });
 });

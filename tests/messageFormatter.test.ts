@@ -96,7 +96,8 @@ function contextFixture(): KornixCurrentContextDto {
 
 describe('messageFormatter', () => {
   it('formats command lists without markdown requirements', () => {
-    assert.match(formatHelp(), /Нажмите кнопку/);
+    assert.match(formatHelp(), /кнопку «Открыть»/);
+    assert.match(formatHelp(), /Все функции доступны только в Mini App/);
     assert.match(formatUnknownCommand('/wat'), /Неизвестная команда: \/wat/);
   });
 
