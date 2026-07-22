@@ -37,7 +37,9 @@ Frontend передаёт оригинальный `window.WebApp.initData` в `
 
 ## Связь с POLIV360
 
-Production endpoint связи пользователей в текущем backend-контракте отсутствует. Поэтому `NotLinkedIdentityResolver` всегда возвращает `not_linked`; это намеренная защита от доступа неизвестного MAX-пользователя к общему service tenant.
+Отдельная привязка аккаунта временно отключена. После обязательной проверки подписи MAX `SharedBotIdentityResolver` даёт Mini App тот же сезон и service identity `max-bot`, которые использует чат-бот. Поэтому поля, статусы, поливы и осадки работают без экрана «Подключите POLIV360».
+
+Этот режим предоставляет всем пользователям данного MAX-бота общий разрешённый backend scope. Он временный и должен быть заменён персональной привязкой, когда backend предоставит соответствующий контракт.
 
 Backend POLIV360 должен предоставить серверный контракт примерно следующего смысла (точный URL и DTO определяет backend):
 
@@ -47,7 +49,7 @@ output: linked | not_linked | inactive | temporarily_unavailable
 linked: internal POLIV user ID, display name, authorized season/tenant scope
 ```
 
-После появления контракта нужно реализовать новый `MaxIdentityResolver`, не меняя frontend API. Нельзя принимать внутренний user/tenant ID от браузера.
+После появления контракта нужно заменить `SharedBotIdentityResolver`, не меняя frontend API. Нельзя принимать внутренний user/tenant ID от браузера.
 
 ## Маршруты и кэш
 
@@ -185,7 +187,7 @@ git diff before-max-miniapp-20260722-1456..HEAD
 
 ## Известные ограничения
 
-- production identity resolver ожидает backend-контракт и до него возвращает `not_linked`;
+- production identity resolver временно использует общий scope service identity `max-bot` после проверки подписи MAX;
 - sessions и drafts находятся в памяти процесса и пропадают при restart;
 - fixed-window rate limit также локален одному экземпляру;
 - MAX theme events пока отсутствуют в официальной Bridge-документации;

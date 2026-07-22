@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import { createMiniAppHandler } from '../src/miniapp/miniAppHandler.js';
+import { SharedBotIdentityResolver } from '../src/miniapp/identityResolver.js';
 import type { KornixClient } from '../src/kornix/kornixClient.js';
 import type { AppConfig } from '../src/types/config.js';
 import type { Logger } from '../src/utils/logger.js';
@@ -69,6 +70,13 @@ async function authToken() {
 }
 
 describe('Mini App HTTP API', () => {
+  it('uses the bot service context without a separate POLIV account link', async () => {
+    const identity = await new SharedBotIdentityResolver(2026).resolve('max-user-1');
+    assert.deepEqual(identity, {
+      status: 'linked', maxUserId: 'max-user-1', polivUserId: 'max-bot', displayName: null, seasonYear: 2026
+    });
+  });
+
   it('authenticates only the explicit development identity and exposes me', async () => {
     const token = await authToken();
     const { response, body } = await json('/miniapp/api/v1/me', { headers: { Authorization: `Bearer ${token}` } });

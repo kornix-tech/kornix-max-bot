@@ -80,7 +80,7 @@ The bot should be independently deployable and restartable. Backend and worker r
 - `src/miniapp/auth` verifies original MAX `initData` and signs a short-lived bearer token.
 - The token stays in frontend memory and is never written to `localStorage`.
 - `MaxIdentityResolver` is the only allowed MAX user → POLIV360 user boundary.
-- The production default resolver returns `not_linked`; it never grants the shared service tenant to an unknown MAX user.
+- The production default resolver temporarily grants the verified MAX user the same season and `max-bot` service scope as the chat bot; replace it with a personal POLIV360 binding when the backend contract exists.
 - `src/miniapp/miniAppHandler.ts` owns the isolated API, in-memory drafts, idempotency and static delivery.
 - `src/kornix/operationService.ts` is shared by the chat bot and Mini App for irrigation and precipitation submissions.
 - `MAX_MINIAPP_ENABLED=false` removes both the UI and Mini App API while `/health` and `/max/webhook` keep working.

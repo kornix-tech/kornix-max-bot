@@ -8,9 +8,17 @@ export interface MaxIdentityResolver {
   resolve(maxUserId: string): Promise<ResolvedPolivUser>;
 }
 
-export class NotLinkedIdentityResolver implements MaxIdentityResolver {
+export class SharedBotIdentityResolver implements MaxIdentityResolver {
+  constructor(private readonly seasonYear: number) {}
+
   async resolve(maxUserId: string): Promise<ResolvedPolivUser> {
-    return { status: 'not_linked', maxUserId };
+    return {
+      status: 'linked',
+      maxUserId,
+      polivUserId: 'max-bot',
+      displayName: null,
+      seasonYear: this.seasonYear
+    };
   }
 }
 

@@ -197,6 +197,6 @@ Deploy scaffold still does not add user binding, approvals, database access or C
 
 The Mini App is an additional transport, not a replacement for chat commands. `src/kornix/operationService.ts` keeps both transports on the same KORNIX submission workflow.
 
-Production access is intentionally fail-closed: verified MAX identity alone is insufficient. `MaxIdentityResolver` must be backed by a POLIV360 endpoint that returns one of `linked`, `not_linked`, `inactive`, or `temporarily_unavailable`. Until that endpoint exists, the default resolver returns `not_linked` and no KORNIX tenant data is exposed.
+Production temporarily maps every verified MAX launch to the same season and `max-bot` service scope as the chat bot. This removes the separate POLIV360 account-link step while preserving server-side MAX signature validation. Replace this shared resolver with a POLIV360 endpoint returning `linked`, `not_linked`, `inactive`, or `temporarily_unavailable` when personal binding is available.
 
 The development resolver is available only with `NODE_ENV=development`, `MAX_MINIAPP_DEV_MODE=true`, and an exact `MAX_MINIAPP_DEV_MAX_USER_ID`. It is not a production identity implementation.

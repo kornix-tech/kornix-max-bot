@@ -3,7 +3,8 @@
 ## 2026-07-22
 
 - Добавлено отключённое по умолчанию MAX Mini App POLIV360: React/Vite mobile UI, отдельный `/miniapp/api/v1/*`, server-side проверка WebAppData и короткая подписанная сессия без хранения токена в браузерном storage.
-- Добавлен fail-closed `MaxIdentityResolver`: production до появления backend-контракта показывает `not_linked` и не раскрывает общий tenant неизвестному MAX-пользователю.
+- Отдельная привязка POLIV360 временно отключена: после проверки подписи MAX Mini App использует тот же сезон и service scope `max-bot`, что и чат-бот, поэтому поля, статусы, поливы и осадки доступны без экрана `not_linked`.
+- Docker-контекст теперь исключает `node_modules` во всех workspace-папках, чтобы локальное состояние frontend-зависимостей не ломало воспроизводимую сборку Mini App.
 - Общая запись поливов и осадков вынесена в `operationService`, чтобы чат-бот и Mini App использовали одинаковые KORNIX DTO, managed scope и submit-проверки.
 - Добавлены in-memory черновики с несколькими операциями, удалением, отменой, явным подтверждением, частичным результатом, rate limit и idempotency key.
 - Docker image теперь собирает и раздаёт Mini App из того же контейнера; Caddy snippet, smoke test, env-примеры и документация дополнены безопасным включением и откатом.

@@ -21,7 +21,7 @@ import {
 import {
   DevelopmentIdentityResolver,
   type MaxIdentityResolver,
-  NotLinkedIdentityResolver,
+  SharedBotIdentityResolver,
   type ResolvedPolivUser
 } from './identityResolver.js';
 import { FixedWindowRateLimiter } from './rateLimiter.js';
@@ -51,7 +51,7 @@ export function createMiniAppHandler(options: Options): HttpHandler {
   const resolver = options.identityResolver ?? (
     options.config.miniAppDevMode
       ? new DevelopmentIdentityResolver(options.config.miniAppDevMaxUserId, options.config.defaultSeasonYear)
-      : new NotLinkedIdentityResolver()
+      : new SharedBotIdentityResolver(options.config.defaultSeasonYear)
   );
   const revokedSessions = new Set<string>();
   const authRateLimit = new FixedWindowRateLimiter(10, 60_000);
