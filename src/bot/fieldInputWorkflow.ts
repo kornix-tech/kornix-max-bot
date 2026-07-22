@@ -1,13 +1,9 @@
 import type { BotContext } from './botContext.js';
 import type { InputKind, PendingFieldInput } from './conversationState.js';
 import { commandButtonKeyboard } from './keyboards.js';
-import type {
-  FieldSeasonCatalogFieldDto,
-  FieldSeasonMapPropertiesDto,
-  KornixApprovalIrrigationCellDto,
-  KornixApprovalManagedScopeDto
-} from '../kornix/kornixTypes.js';
+import type { FieldSeasonCatalogFieldDto, FieldSeasonMapPropertiesDto } from '../kornix/kornixTypes.js';
 import { ApiError } from '../kornix/kornixClient.js';
+import { submitIrrigationOperations, submitPrecipitationOperations } from '../kornix/operationService.js';
 import type { BotResponse, ParsedCommand } from '../types/bot.js';
 
 type ParsedFieldInput = {
@@ -333,66 +329,10 @@ function parseMm(token: string): number | null {
 }
 
 async function submitWater(context: BotContext, pendingInputs: PendingFieldInput[]): Promise<string> {
-  const currentContext = await context.kornixClient.getCurrentContext(context.seasonYear);
-  if (!currentContext.currentAppliedCalculationRunId) {
-    return 'Полив не отправлен: в KORNIX нет currentAppliedCalculationRunId.';
+  const result = await submitIrrigationOperations(context.kornixClient, context.seasonYear, pendingInputs);
+  if (!result.accepted) {
+    return `Полив не отправлен: ${result.reason}.`;
   }
-  if (!currentContext.submitAllowed) {
-    return `Полив не отправлен: submitAllowed=no${currentContext.submitBlockedReason ? ` (${currentContext.submitBlockedReason})` : ''}.`;
-  }
-
-  const managedScope: KornixApprovalManagedScopeDto = {
-    dateFrom: currentContext.managedScope.dateFrom,
-    dateTo: currentContext.managedScope.dateTo,
-    fieldSeasonIds: currentContext.managedScope.fieldSeasonIds,
-    scopeVersion: currentContext.managedScope.scopeVersion
-  };
-
-  if (pendingInputs.some((pending) => !isFieldInManagedScope(pending.field.fieldSeasonId, managedScope))) {
-    return 'Полив не отправлен: выбранное поле сейчас вне managedScope KORNIX.';
-  }
-  const invalidDate = pendingInputs.find((pending) => !isDateInManagedScope(pending.date, managedScope));
-  if (invalidDate) {
-    return `Полив не отправлен: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
-  }
-
-  const currentLayer = await context.kornixClient.getCurrentIrrigationLayer(context.seasonYear);
-  const layer = new Map<string, KornixApprovalIrrigationCellDto>();
-  for (const cell of currentLayer.irrigationLayer) {
-    if (cell.irrigationMm > 0 && isCellInManagedScope(cell, managedScope)) {
-      layer.set(cellKey(cell.fieldSeasonId, cell.irrigationDate), {
-        fieldSeasonId: cell.fieldSeasonId,
-        irrigationDate: cell.irrigationDate,
-        irrigationMm: cell.irrigationMm
-      });
-    }
-  }
-
-  const added: ReturnType<typeof diffEntry>[] = [];
-  const updated: ReturnType<typeof diffEntry>[] = [];
-  for (const pending of pendingInputs) {
-    const key = fieldDateKey(pending);
-    const previous = layer.get(key);
-    layer.set(key, {
-      fieldSeasonId: pending.field.fieldSeasonId,
-      irrigationDate: pending.date,
-      irrigationMm: pending.mm
-    });
-    (previous ? updated : added).push(diffEntry(pending));
-  }
-
-  await context.kornixClient.submitWaterRegimeApproval({
-    seasonYear: context.seasonYear,
-    baseCalculationRunId: currentContext.currentAppliedCalculationRunId,
-    approvalClientGeneratedAt: new Date().toISOString(),
-    managedScope,
-    irrigationLayer: [...layer.values()],
-    clientDiff: {
-      added,
-      updated,
-      deleted: []
-    }
-  });
 
   return pendingInputs.flatMap((pending) => [
     'Полив принят KORNIX. Единый расчёт запустится через 5 минут после последнего изменения в MAX bot.',
@@ -404,41 +344,10 @@ async function submitWater(context: BotContext, pendingInputs: PendingFieldInput
 }
 
 async function submitRain(context: BotContext, pendingInputs: PendingFieldInput[]): Promise<string> {
-  const currentContext = await context.kornixClient.getCurrentContext(context.seasonYear);
-  if (!currentContext.currentAppliedCalculationRunId) {
-    return 'Осадки не отправлены: в KORNIX нет currentAppliedCalculationRunId.';
+  const result = await submitPrecipitationOperations(context.kornixClient, context.seasonYear, pendingInputs);
+  if (!result.accepted) {
+    return `Осадки не отправлены: ${result.reason}.`;
   }
-  if (!currentContext.submitAllowed) {
-    return `Осадки не отправлены: submitAllowed=no${currentContext.submitBlockedReason ? ` (${currentContext.submitBlockedReason})` : ''}.`;
-  }
-
-  const managedScope: KornixApprovalManagedScopeDto = {
-    dateFrom: `${currentContext.seasonYear}-04-01`,
-    dateTo: currentContext.serverDate,
-    fieldSeasonIds: currentContext.managedScope.fieldSeasonIds,
-    scopeVersion: currentContext.managedScope.scopeVersion
-  };
-
-  if (pendingInputs.some((pending) => !isFieldInManagedScope(pending.field.fieldSeasonId, managedScope))) {
-    return 'Осадки не отправлены: выбранное поле сейчас вне managedScope KORNIX.';
-  }
-  const invalidDate = pendingInputs.find((pending) => !isDateInManagedScope(pending.date, managedScope));
-  if (invalidDate) {
-    return `Осадки не отправлены: дата должна быть в окне managedScope ${managedScope.dateFrom}..${managedScope.dateTo}.`;
-  }
-
-  await context.kornixClient.submitManualPrecipitation({
-    seasonYear: context.seasonYear,
-    baseCalculationRunId: currentContext.currentAppliedCalculationRunId,
-    approvalClientGeneratedAt: new Date().toISOString(),
-    managedScope,
-    precipitationLayer: [],
-    clientDiff: {
-      added: pendingInputs.map(precipitationDiffEntry),
-      updated: [],
-      deleted: []
-    }
-  });
 
   return pendingInputs.flatMap((pending) => [
     'Осадки приняты KORNIX. Единый расчёт запустится через 5 минут после последнего изменения в MAX bot.',
@@ -559,45 +468,12 @@ function dateSelectionResponse(kind: InputKind, field: FieldSeasonCatalogFieldDt
   };
 }
 
-function diffEntry(pending: PendingFieldInput) {
-  return {
-    fieldSeasonId: pending.field.fieldSeasonId,
-    date: pending.date,
-    mm: pending.mm,
-    source: 'max_bot'
-  };
-}
-
-function precipitationDiffEntry(pending: PendingFieldInput) {
-  return {
-    fieldSeasonId: pending.field.fieldSeasonId,
-    day: pending.date,
-    precipitationMm: pending.mm,
-    source: 'max_bot'
-  };
-}
-
 function fieldDateKey(pending: PendingFieldInput): string {
   return cellKey(pending.field.fieldSeasonId, pending.date);
 }
 
 function cellKey(fieldSeasonId: string, date: string): string {
   return `${fieldSeasonId}:${date}`;
-}
-
-function isCellInManagedScope(
-  cell: { fieldSeasonId: string; irrigationDate: string },
-  managedScope: KornixApprovalManagedScopeDto
-): boolean {
-  return isFieldInManagedScope(cell.fieldSeasonId, managedScope) && isDateInManagedScope(cell.irrigationDate, managedScope);
-}
-
-function isFieldInManagedScope(fieldSeasonId: string, managedScope: KornixApprovalManagedScopeDto): boolean {
-  return managedScope.fieldSeasonIds.includes(fieldSeasonId);
-}
-
-function isDateInManagedScope(date: string, managedScope: KornixApprovalManagedScopeDto): boolean {
-  return date >= managedScope.dateFrom && date <= managedScope.dateTo;
 }
 
 function getFieldSortParts(fieldKey: string): number[] {

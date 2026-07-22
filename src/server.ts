@@ -7,6 +7,7 @@ import { KornixClient } from './kornix/kornixClient.js';
 import { MaxClient } from './max/maxClient.js';
 import { createLogger } from './utils/logger.js';
 import { sendMethodNotAllowed, sendNotFound } from './utils/http.js';
+import { createMiniAppHandler } from './miniapp/miniAppHandler.js';
 
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
@@ -36,6 +37,7 @@ const maxWebhookHandler = createMaxWebhookHttpHandler({
   maxClient,
   conversationStore
 });
+const miniAppHandler = createMiniAppHandler({ config, kornixClient, logger });
 
 const server = createServer(async (request, response) => {
   try {
@@ -56,6 +58,11 @@ const server = createServer(async (request, response) => {
         return;
       }
       await maxWebhookHandler(request, response);
+      return;
+    }
+
+    if (url.pathname === '/miniapp' || url.pathname.startsWith('/miniapp/')) {
+      await miniAppHandler(request, response);
       return;
     }
 

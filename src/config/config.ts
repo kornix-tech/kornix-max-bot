@@ -33,11 +33,33 @@ function readLogLevel(env: NodeJS.ProcessEnv): LogLevel {
   return LOG_LEVELS.has(raw) ? raw : 'info';
 }
 
+function readBoolean(env: NodeJS.ProcessEnv, name: string, fallback = false): boolean {
+  const raw = readString(env, name, String(fallback)).toLowerCase();
+  if (raw !== 'true' && raw !== 'false') {
+    throw new Error(`${name} must be true or false, got: ${raw}`);
+  }
+  return raw === 'true';
+}
+
+function readOrigins(env: NodeJS.ProcessEnv): string[] {
+  const raw = readString(env, 'MAX_MINIAPP_ALLOWED_ORIGINS');
+  if (!raw) {
+    return [];
+  }
+  return raw.split(',').map((origin) => new URL(origin.trim()).origin);
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const nodeEnv = readString(env, 'NODE_ENV', 'development');
   const kornixServiceToken = readString(env, 'KORNIX_SERVICE_TOKEN');
   const maxBotToken = readString(env, 'MAX_BOT_TOKEN');
   const maxWebhookSecret = readString(env, 'MAX_WEBHOOK_SECRET');
+  const miniAppEnabled = readBoolean(env, 'MAX_MINIAPP_ENABLED');
+  const miniAppSessionSecret = readString(env, 'MAX_MINIAPP_SESSION_SECRET');
+  const miniAppDevMode = readBoolean(env, 'MAX_MINIAPP_DEV_MODE');
+  if (miniAppDevMode && nodeEnv !== 'development') {
+    throw new Error('MAX_MINIAPP_DEV_MODE may only be enabled when NODE_ENV=development.');
+  }
   if (nodeEnv === 'production') {
     for (const [name, value] of [
       ['KORNIX_SERVICE_TOKEN', kornixServiceToken],
@@ -48,6 +70,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
         throw new Error(`${name} must be configured with at least 32 characters in production.`);
       }
     }
+  }
+  if (miniAppEnabled && miniAppSessionSecret.length < 32) {
+    throw new Error('MAX_MINIAPP_SESSION_SECRET must contain at least 32 characters when Mini App is enabled.');
   }
   return {
     nodeEnv,
@@ -64,6 +89,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     maxApiBaseUrl: readString(env, 'MAX_API_BASE_URL', 'https://platform-api2.max.ru'),
     maxRequestTimeoutMs: readPositiveInteger(env, 'MAX_REQUEST_TIMEOUT_MS', DEFAULT_MAX_REQUEST_TIMEOUT_MS),
     defaultSeasonYear: readPositiveInteger(env, 'DEFAULT_SEASON_YEAR', DEFAULT_SEASON_YEAR),
-    logLevel: readLogLevel(env)
+    logLevel: readLogLevel(env),
+    miniAppEnabled,
+    miniAppPublicUrl: readString(env, 'MAX_MINIAPP_PUBLIC_URL'),
+    miniAppInitDataMaxAgeSeconds: readPositiveInteger(env, 'MAX_MINIAPP_INIT_DATA_MAX_AGE_SECONDS', 300),
+    miniAppSessionSecret,
+    miniAppSessionTtlSeconds: readPositiveInteger(env, 'MAX_MINIAPP_SESSION_TTL_SECONDS', 3600),
+    miniAppAllowedOrigins: readOrigins(env),
+    miniAppPolivLinkUrl: readString(env, 'MAX_MINIAPP_POLIV_LINK_URL'),
+    miniAppDevMode,
+    miniAppDevMaxUserId: readString(env, 'MAX_MINIAPP_DEV_MAX_USER_ID', 'miniapp-dev-user')
   };
 }

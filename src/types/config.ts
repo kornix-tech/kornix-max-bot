@@ -12,4 +12,13 @@ export type AppConfig = {
   maxRequestTimeoutMs: number;
   defaultSeasonYear: number;
   logLevel: LogLevel;
+  miniAppEnabled: boolean;
+  miniAppPublicUrl: string;
+  miniAppInitDataMaxAgeSeconds: number;
+  miniAppSessionSecret: string;
+  miniAppSessionTtlSeconds: number;
+  miniAppAllowedOrigins: string[];
+  miniAppPolivLinkUrl: string;
+  miniAppDevMode: boolean;
+  miniAppDevMaxUserId: string;
 };

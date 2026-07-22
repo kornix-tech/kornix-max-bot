@@ -23,7 +23,7 @@ export function createLogger(level: LogLevel): Logger {
       level: entryLevel,
       time: new Date().toISOString(),
       message,
-      ...(meta ? { meta } : {})
+      ...(meta ? { meta: redact(meta) } : {})
     };
     const line = JSON.stringify(payload);
     if (entryLevel === 'error') {
@@ -43,4 +43,19 @@ export function createLogger(level: LogLevel): Logger {
     warn: (message, meta) => write('warn', message, meta),
     error: (message, meta) => write('error', message, meta)
   };
+}
+
+const SECRET_KEY = /authorization|cookie|token|secret|initdata|hash/i;
+
+function redact(value: unknown, key = ''): unknown {
+  if (SECRET_KEY.test(key)) {
+    return '[REDACTED]';
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redact(item));
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, redact(item, name)]));
+  }
+  return value;
 }
