@@ -5,8 +5,6 @@ import type {
   Field,
   FieldDetails,
   Identity,
-  Methods,
-  Readiness,
   SubmitResult
 } from '../types';
 
@@ -46,9 +44,6 @@ export async function authenticate(initData: string, devUserId?: string): Promis
 export const api = {
   me: () => request<Identity>('/me'),
   context: () => request<Context>('/context'),
-  status: () => request<Readiness>('/status'),
-  readiness: () => request<Readiness>('/readiness'),
-  methods: () => request<Methods>('/methods'),
   fields: async () => (await request<{ fields: Field[] }>('/fields')).fields,
   field: (id: string) => request<FieldDetails>(`/fields/${encodeURIComponent(id)}`),
   currentDraft: async () => (await request<{ draft: Draft | null }>('/drafts/current')).draft,

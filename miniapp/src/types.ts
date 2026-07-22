@@ -19,21 +19,14 @@ export type Context = {
   currentAppliedStatus: string;
   currentAppliedCalculationRunId: string | null;
   lastCalculationFinishedAt: string | null;
+  defaultMethodCode: string;
+  availableMethods: Method[];
   frontendMode: string;
   submitAllowed: boolean;
   fieldCount: number;
   generatedAt: string;
   readinessSummary: { status: string };
   managedScope: { dateFrom: string; dateTo: string; fieldSeasonIds: string[] };
-};
-
-export type Readiness = {
-  status: string;
-  productionStatus: string;
-  checkedAt: string | null;
-  currentAppliedCalculationRunId: string | null;
-  blockingErrors: string[];
-  warnings: Array<{ code: string; message: string }>;
 };
 
 export type Field = {
@@ -62,8 +55,6 @@ export type FieldDetails = {
 };
 
 export type Method = { methodCode: string; label: string; isDefault: boolean; isRequired: boolean };
-export type Methods = { defaultMethodCode: string; methods: Method[] };
-
 export type DraftItem = {
   id: string;
   type: 'irrigation' | 'precipitation';

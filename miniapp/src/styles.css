@@ -49,6 +49,7 @@ h1, h2, h3, p { margin-top: 0; }
 .metric-card b { font-size: 17px; overflow-wrap: anywhere; }
 .metric-card b.good { color: var(--brand); }
 .metric-card b.warn { color: var(--warning); }
+.metric-card:only-child { grid-column: 1 / -1; }
 .action-card { min-height: 142px; padding: 18px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
 .action-card > span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--brand-soft); color: var(--brand); font-size: 20px; }
 .action-card b { margin-top: auto; font-size: 15px; }

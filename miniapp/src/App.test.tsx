@@ -11,10 +11,10 @@ const context = {
   organizationName: 'СП', organizationCode: 'SP', seasonYear: 2026, serverDate: '2026-07-22',
   currentOperationalStatus: 'completed', currentAppliedStatus: 'completed', currentAppliedCalculationRunId: 'run-1',
   lastCalculationFinishedAt: '2026-07-22T10:00:00Z',
+  defaultMethodCode: 'simple', availableMethods: [{ methodCode: 'simple', label: 'Простой', isDefault: true, isRequired: true }],
   frontendMode: 'current_editable', submitAllowed: true, fieldCount: 1, generatedAt: '2026-07-22T10:00:00Z',
   readinessSummary: { status: 'pass' }, managedScope: { dateFrom: '2026-07-01', dateTo: '2026-07-29', fieldSeasonIds: ['field-1'] }
 };
-const readiness = { status: 'pass', productionStatus: 'ready', checkedAt: null, currentAppliedCalculationRunId: 'run-1', blockingErrors: [], warnings: [] };
 let container: HTMLDivElement;
 let root: Root;
 
@@ -52,7 +52,6 @@ describe('Mini App interface', () => {
       const url = String(input);
       if (url.endsWith('/auth/max')) return response(linkedAuth);
       if (url.endsWith('/context')) return response(context);
-      if (url.endsWith('/status')) return response(readiness);
       if (url.endsWith('/drafts/current')) return response({ draft: null });
       if (url.endsWith('/fields')) return response({ fields: [{ fieldId: 'id-1', fieldSeasonId: 'field-1', fieldKey: 'SP:1.1', fieldName: 'Участок 1.1', areaHa: 12, cropName: 'Пшеница', cropSowingDate: null }] });
       return response({ error: { code: 'missing_mock', message: url } }, 500);
@@ -62,21 +61,22 @@ describe('Mini App interface', () => {
     expect(container.textContent).toContain('13:00');
     expect(container.textContent).not.toContain('Готовность данных');
     expect(container.textContent).not.toContain('Методы полива');
+    expect([...container.querySelectorAll('.metric-card')].map((item) => item.textContent)).toEqual(['Подготовлено0 изменений']);
     const button = [...container.querySelectorAll('button')].find((item) => item.textContent?.includes('Мои участки'));
     await act(async () => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     await vi.waitFor(() => expect(container.textContent).toContain('Участок 1.1'));
     expect(container.textContent).toContain('Пшеница');
   });
 
-  it('opens irrigation even when the methods request fails', async () => {
+  it('opens irrigation without a separate methods request or an internal error', async () => {
+    const requests: string[] = [];
     vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
+      requests.push(url);
       if (url.endsWith('/auth/max')) return response(linkedAuth);
       if (url.endsWith('/context')) return response(context);
-      if (url.endsWith('/status')) return response(readiness);
       if (url.endsWith('/drafts/current')) return response({ draft: null });
       if (url.endsWith('/fields')) return response({ fields: [{ fieldId: 'id-1', fieldSeasonId: 'field-1', fieldKey: 'SP:1.1', fieldName: 'Участок 1.1', areaHa: 12, cropName: 'Пшеница', cropSowingDate: null }] });
-      if (url.endsWith('/methods')) return response({ error: { code: 'unavailable', message: 'Справочник временно недоступен.' } }, 503);
       return response({ error: { code: 'missing_mock', message: url } }, 500);
     }));
     await act(async () => root.render(<App />));
@@ -84,6 +84,31 @@ describe('Mini App interface', () => {
     const button = [...container.querySelectorAll('button')].find((item) => item.textContent?.includes('Добавить полив'));
     await act(async () => button?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     await vi.waitFor(() => expect(container.querySelector('input[type="number"]')).not.toBeNull());
+    expect(container.textContent).not.toContain('Внутренняя ошибка Mini App');
+    expect(requests.some((url) => url.endsWith('/methods'))).toBe(false);
+    expect(container.textContent).toContain('Метод полива');
+  });
+
+  it('shows no water stress when the coefficient is one', async () => {
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/auth/max')) return response(linkedAuth);
+      if (url.endsWith('/context')) return response(context);
+      if (url.endsWith('/drafts/current')) return response({ draft: null });
+      if (url.endsWith('/fields/field-1')) return response({
+        field: { fieldId: 'id-1', fieldSeasonId: 'field-1', fieldKey: 'SP:1.1', fieldName: 'Участок 1.1', areaHa: 12, cropName: 'Пшеница', cropSowingDate: null },
+        status: { latestStatus: 'ok', day: '2026-07-22', soil_field_capacity_water_mm: 100, soil_water_content_mm: 80, water_stress_coefficient: 1, recommended_irrigation_date: null, recommended_irrigation_mm: null, dataQuality: { calculationAvailable: true, forcingComplete: true, messages: [] } },
+        context
+      });
+      if (url.endsWith('/fields')) return response({ fields: [{ fieldId: 'id-1', fieldSeasonId: 'field-1', fieldKey: 'SP:1.1', fieldName: 'Участок 1.1', areaHa: 12, cropName: 'Пшеница', cropSowingDate: null }] });
+      return response({ error: { code: 'missing_mock', message: url } }, 500);
+    }));
+    await act(async () => root.render(<App />));
+    await vi.waitFor(() => expect(container.textContent).toContain('Мои участки'));
+    await act(async () => [...container.querySelectorAll('button')].find((item) => item.textContent?.includes('Мои участки'))?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    await vi.waitFor(() => expect(container.textContent).toContain('Участок 1.1'));
+    await act(async () => [...container.querySelectorAll('button')].find((item) => item.textContent?.includes('Участок 1.1'))?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    await vi.waitFor(() => expect(container.querySelector('.details-card')?.textContent).toContain('Водный стресснет'));
   });
 
   it('shows a server signature error without exposing raw launch data', async () => {

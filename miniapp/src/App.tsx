@@ -9,8 +9,6 @@ import type {
   Field,
   FieldDetails,
   Identity,
-  Methods,
-  Readiness,
   SubmitResult
 } from './types';
 
@@ -24,9 +22,7 @@ export default function App() {
   const [boot, setBoot] = useState<BootState>({ status: 'loading' });
   const [view, setView] = useState<View>('home');
   const [context, setContext] = useState<Context | null>(null);
-  const [readiness, setReadiness] = useState<Readiness | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
-  const [methods, setMethods] = useState<Methods | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [fieldDetails, setFieldDetails] = useState<FieldDetails | null>(null);
   const [result, setResult] = useState<SubmitResult | null>(null);
@@ -34,11 +30,10 @@ export default function App() {
   const [message, setMessage] = useState('');
 
   const loadHome = useCallback(async () => {
-    const [nextContext, nextReadiness, nextDraft] = await Promise.all([
-      api.context(), api.status(), api.currentDraft()
+    const [nextContext, nextDraft] = await Promise.all([
+      api.context(), api.currentDraft()
     ]);
     setContext(nextContext);
-    setReadiness(nextReadiness);
     setDraft(nextDraft);
   }, []);
 
@@ -98,9 +93,6 @@ export default function App() {
       const nextFields = fields.length ? fields : await api.fields();
       setFields(preferred ? [preferred, ...nextFields.filter((item) => item.fieldSeasonId !== preferred.fieldSeasonId)] : nextFields);
       setView(type);
-      if (type === 'irrigation' && !methods) {
-        void api.methods().then(setMethods).catch((error) => setMessage(errorMessage(error)));
-      }
     });
   }
 
@@ -126,14 +118,13 @@ export default function App() {
       <main>
         {message && <div className="notice error" role="alert">{message}</div>}
         {busy && <div className="progress" aria-label="Загрузка" />}
-        {view === 'home' && <Home context={context} readiness={readiness} draft={draft} onFields={openFields} onForm={openForm} />}
+        {view === 'home' && <Home context={context} draft={draft} onFields={openFields} onForm={openForm} />}
         {view === 'fields' && <Fields fields={fields} onSelect={openField} />}
         {view === 'field' && fieldDetails && <FieldCard details={fieldDetails} onForm={openForm} />}
         {(view === 'irrigation' || view === 'precipitation') && (
           <OperationForm
             type={view}
             fields={fields}
-            methods={methods}
             context={context}
             disabled={busy}
             onSubmit={(item) => run(async () => {
@@ -158,7 +149,6 @@ export default function App() {
 
 function Home(props: {
   context: Context | null;
-  readiness: Readiness | null;
   draft: Draft | null;
   onFields(): void;
   onForm(type: 'irrigation' | 'precipitation'): void;
@@ -168,11 +158,9 @@ function Home(props: {
       <section className="hero-card">
         <span className="eyebrow">Сезон {props.context?.seasonYear ?? '—'}</span>
         <h2>{props.context?.organizationName ?? props.context?.organizationCode ?? 'Ваше хозяйство'}</h2>
-        <p>{props.context?.fieldCount ?? '—'} участков · данные на {formatDate(props.context?.serverDate)}</p>
+        <p>{props.context?.fieldCount ?? '—'} участков · данные на {formatDate(props.context?.serverDate)} (последний расчёт: {formatDateTimeMoscow(props.context?.lastCalculationFinishedAt)} МСК)</p>
       </section>
       <section className="metric-grid" aria-label="Сводка">
-        <Metric label="Последний расчёт" value={formatDateTimeMoscow(props.context?.lastCalculationFinishedAt)} />
-        <Metric label="Статус сервиса" value={statusLabel(props.readiness?.productionStatus)} tone={props.readiness?.productionStatus === 'ready' ? 'good' : 'warn'} />
         <Metric label="Подготовлено" value={`${props.draft?.items.length ?? 0} изменений`} />
       </section>
       <section className="action-grid">
@@ -201,7 +189,7 @@ function FieldCard({ details, onForm }: { details: FieldDetails; onForm(type: 'i
     <section className="details-card">
       <Row label="Статус" value={statusLabel(status?.latestStatus)} />
       <Row label="Влага в почве" value={moisture === null ? 'Нет данных' : `${moisture}% НВ`} />
-      <Row label="Водный стресс" value={formatNumber(status?.water_stress_coefficient, 2)} />
+      <Row label="Водный стресс" value={status?.water_stress_coefficient === 1 ? 'нет' : formatNumber(status?.water_stress_coefficient, 2)} />
       <Row label="Рекомендация" value={status?.recommended_irrigation_mm ? `${formatNumber(status.recommended_irrigation_mm)} мм` : 'Полив не требуется'} />
       <Row label="Дата данных" value={formatDate(status?.day)} />
     </section>
@@ -212,7 +200,6 @@ function FieldCard({ details, onForm }: { details: FieldDetails; onForm(type: 'i
 function OperationForm(props: {
   type: 'irrigation' | 'precipitation';
   fields: Field[];
-  methods: Methods | null;
   context: Context | null;
   disabled: boolean;
   onSubmit(item: { type: 'irrigation' | 'precipitation'; fieldId: string; date: string; millimeters: number; methodCode?: string }): void;
@@ -220,10 +207,7 @@ function OperationForm(props: {
   const [fieldId, setFieldId] = useState(props.fields[0]?.fieldSeasonId ?? '');
   const [date, setDate] = useState(props.context?.serverDate ?? new Date().toISOString().slice(0, 10));
   const [millimeters, setMillimeters] = useState('');
-  const [methodCode, setMethodCode] = useState(props.methods?.defaultMethodCode ?? '');
-  useEffect(() => {
-    if (!methodCode && props.methods?.defaultMethodCode) setMethodCode(props.methods.defaultMethodCode);
-  }, [methodCode, props.methods?.defaultMethodCode]);
+  const [methodCode, setMethodCode] = useState(props.context?.defaultMethodCode ?? '');
   const mm = Number(millimeters.replace(',', '.'));
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -234,7 +218,7 @@ function OperationForm(props: {
     <label>Участок<select value={fieldId} onChange={(event) => setFieldId(event.target.value)} required>{props.fields.map((field) => <option key={field.fieldSeasonId} value={field.fieldSeasonId}>{field.fieldName || field.fieldKey}</option>)}</select></label>
     <label>Дата<input type="date" value={date} onChange={(event) => setDate(event.target.value)} required /></label>
     <label>Количество, мм<input inputMode="decimal" type="number" min="0.1" max="500" step="0.1" placeholder="Например, 12.5" value={millimeters} onChange={(event) => setMillimeters(event.target.value)} required /></label>
-    {props.type === 'irrigation' && props.methods && <label>Метод полива<select value={methodCode} onChange={(event) => setMethodCode(event.target.value)}>{props.methods.methods.map((method) => <option key={method.methodCode} value={method.methodCode}>{method.label}</option>)}</select></label>}
+    {props.type === 'irrigation' && props.context?.availableMethods.length ? <label>Метод полива<select value={methodCode} onChange={(event) => setMethodCode(event.target.value)}>{props.context.availableMethods.map((method) => <option key={method.methodCode} value={method.methodCode}>{method.label}</option>)}</select></label> : null}
     <button type="submit" disabled={props.disabled || !fieldId || !date || !Number.isFinite(mm) || mm <= 0 || mm > 500}>Добавить в список</button>
   </form>;
 }
