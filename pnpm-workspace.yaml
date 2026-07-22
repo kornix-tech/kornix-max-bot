@@ -1,0 +1,4 @@
+packages:
+  - miniapp
+allowBuilds:
+  esbuild: true
